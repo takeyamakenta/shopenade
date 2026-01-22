@@ -1,0 +1,17 @@
+FROM node:22-bookworm AS builder
+
+WORKDIR /app
+
+COPY . .
+
+COPY .env.prod .env
+
+RUN chmod +x traefik.sh
+
+RUN npm ci
+
+RUN npm run build
+
+EXPOSE 8080
+
+ENTRYPOINT ["npm", "run", "serve"]

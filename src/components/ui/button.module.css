@@ -1,0 +1,124 @@
+.primary {
+    border-radius: 50rem;
+    border: 1px solid transparent;
+    width: fit-content;
+    height: fit-content;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(
+            to right,
+            hsl(var(--primary-theme)),
+            hsl(var(--primary-theme-to)) 150%
+        );
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}
+.secondary {
+    border-radius: 50rem;
+    border: 1px solid transparent;
+    width: fit-content;
+    height: fit-content;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(
+            to right,
+            hsl(var(--secondary-theme)),
+            hsl(var(--secondary-theme-to)) 150%
+        );
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}
+.destructive {
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    width: fit-content;
+    height: fit-content;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(
+            to top right,
+            white,
+            hsl(var(--destructive)) 150%
+        );
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}
+.confirm {
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    width: fit-content;
+    height: fit-content;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(
+            to top right,
+            hsl(var(--confirm-foreground)),
+            hsl(var(--confirm)) 150%
+        );
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}
+.inert {
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    width: fit-content;
+    height: fit-content;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(to top right, hsl(var(--inert-foreground)), hsl(var(--inert)) 30%);
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}
+.primary .disabled {
+    border-radius: 50rem;
+    border: 1px solid transparent;
+    width: fit-content;
+    height: fit-content;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(to right, rgb(166, 174, 191), white 150%);
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}
+.secondary .disabled {
+    border-radius: 50rem;
+    border: 1px solid transparent;
+    width: fit-content;
+    height: fit-content;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(to right, rgb(166, 174, 191), white 150%);
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}
+.destructive .disabled {
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    width: fit-content;
+    height: fit-content;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(to right, rgb(166, 174, 191), white 150%);
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}
+.confirm .disabled {
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    width: fit-content;
+    height: fit-content;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(to right, rgb(166, 174, 191), white 150%);
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}
+.inert .disabled {
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    width: fit-content;
+    height: fit-content;
+    background-image: linear-gradient(to top right, hsl(var(--inert-foreground)), hsl(var(--inert)) 30%);
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}

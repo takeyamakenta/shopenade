@@ -1,0 +1,34 @@
+import { signPayload } from "@/libs/auth/signPayload";
+
+export const doDeleteAccount = async (
+    uid: string,
+    idToken: string,
+): Promise<{ success: boolean; error?: string }> => {
+    const payload = {
+        uid: uid,
+    };
+    const serializedPayload = JSON.stringify(payload);
+    const signature = signPayload(serializedPayload, process.env.SIGN_KEY!);
+    const response = await fetch(
+        `${process.env.BACKEND_URL}a/v1/account/delete`,
+        {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Signature": signature,
+                "Authorization": `Bearer ${idToken}`,
+            },
+            body: serializedPayload,
+        }
+    );
+    if (response.ok) {
+        return {
+            success: response.ok,
+        };
+    } else {
+        return {
+            success: false,
+            error: await response.text(),
+        };
+    }
+};
