@@ -79,6 +79,7 @@ export const doCreateUserWithEmailAndPassword = async (
                 },
             };
         } else {
+            await adminAuth.deleteUser(user.uid);
             const errorText = await result.text();
             console.error(errorText);
             return {
@@ -88,7 +89,7 @@ export const doCreateUserWithEmailAndPassword = async (
             };
         }
     } catch (error: unknown) {
-        adminAuth.deleteUser(user.uid);
+        await adminAuth.deleteUser(user.uid);
         console.error(error);
         return {
             success: false,
