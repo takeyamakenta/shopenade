@@ -141,7 +141,7 @@ function NavHeader() {
                     "border-image": `linear-gradient(to left, ${fromColor()}, ${toColor()} 50%, ${fromColor()}) 1`,
                 }}
             >
-                <div class="px-4 font-bold">都バスの達人</div>
+                <div class="px-4"><span class="font-bold italic">Shopenade</span><span> 📦 🏃</span></div>
                 <Suspense fallback={<div>Loading...</div>}>
                     <div class="flex flex-row items-center justify-center gap-2 px-2">
                         {authStore.authData ? (

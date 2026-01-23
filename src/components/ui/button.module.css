@@ -122,3 +122,42 @@
     background-origin: border-box;
     background-clip: content-box, border-box;
 }
+.tertiary {
+    border-radius: 50rem;
+    width: fit-content;
+    height: fit-content;
+    background: linear-gradient(
+        135deg,
+        hsl(280, 85%, 55%),
+        hsl(320, 85%, 55%),
+        hsl(350, 85%, 55%)
+    );
+    background-size: 200% 200%;
+    animation: gradient-shift 3s ease infinite;
+}
+.tertiary:hover {
+    background: linear-gradient(
+        135deg,
+        hsl(280, 90%, 60%),
+        hsl(320, 90%, 60%),
+        hsl(350, 90%, 60%)
+    );
+}
+@keyframes gradient-shift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+.tertiary .disabled {
+    border-radius: 50rem;
+    width: fit-content;
+    height: fit-content;
+    background: linear-gradient(to right, rgb(166, 174, 191), rgb(200, 200, 200));
+    animation: none;
+}

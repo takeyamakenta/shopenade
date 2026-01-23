@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/carousel";
 import NavFooter from "@/layouts/NavFooter";
 import NavHeader from "@/layouts/NavHeader";
-
+import { Button } from "@/components/ui/button";
 const customers = [
     { name: "Customer A" },
     { name: "Customer B" },
@@ -75,9 +75,11 @@ export default function Home() {
                     </div>
                 </div>
 
-                <button class="rounded-lg bg-blue-600 px-8 py-4 text-lg font-semibold text-white hover:bg-blue-700">
-                    今すぐ登録する
-                </button>
+                <a href="/register">
+                    <Button variant="tertiary" size="xl">
+                        今すぐ登録する
+                    </Button>
+                </a>
             </section>
 
             <NavFooter />

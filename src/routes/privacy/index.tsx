@@ -20,7 +20,7 @@ export default function Privacy() {
                 <h1>プライバシーポリシー</h1>
                 <section class="flex flex-col gap-2">
                     <p>
-                        都バスの達人は、プライバシーポリシーを以下の通り定めます。
+                        shopenadeは、プライバシーポリシーを以下の通り定めます。
                     </p>
                     <h3>1. 収集する利用者情報及び収集方法</h3>
                     <p>

@@ -14,7 +14,7 @@ export default function App() {
             <Router
                 root={(props) => (
                     <MetaProvider>
-                        <Title>都バスの達人</Title>
+                        <Title>shopenade</Title>
                         <Suspense>{props.children}</Suspense>
                     </MetaProvider>
                 )}

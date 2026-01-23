@@ -27,11 +27,14 @@ const buttonVariants = cva(
                     "bg-inert text-inert-foreground hover:bg-inert/70 rounded-md",
                 nav:
                     "bg-nav text-nav-foreground hover:bg-nav/70 rounded-md border border-nav shadow-[0px_0px_2px_2px_rgba(172_181_49_/0.5)]",
+                tertiary:
+                    "text-white font-semibold rounded-full shadow-lg hover:scale-105 hover:shadow-xl transition-all duration-200",
             },
             size: {
                 md: "h-10 px-4 py-2",
                 sm: "h-9 px-3 text-xs",
                 lg: "h-11 px-8",
+                xl: "h-14 px-10 py-4 text-lg",
                 icon: "size-10",
             },
         },
