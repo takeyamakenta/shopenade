@@ -4,12 +4,9 @@ import {
 import { signPayload } from "@/libs/auth/signPayload";
 import { serializeError } from "../error/reportError";
 
-type CreateUserWithEmailAndPasswordResponse =
+type CreateUser =
     | {
           success: boolean;
-          data: {
-            group_codes: string[];
-          };
       }
     | {
           success: false;
@@ -17,11 +14,11 @@ type CreateUserWithEmailAndPasswordResponse =
           data: unknown;
       };
 
-export const doCreateUserWithEmailAndPassword = async (
+export const doCreateUser = async (
     email: string,
     password: string,
     name: string
-): Promise<CreateUserWithEmailAndPasswordResponse> => {
+): Promise<CreateUser> => {
     const user = await adminAuth.createUser({
         email,
         password,
@@ -41,11 +38,9 @@ export const doCreateUserWithEmailAndPassword = async (
             identity_platform_type: "firebase",
             identity_platform_id: user.uid,
             app_code : process.env.APP_CODE,
-            is_app_public: process.env.IS_APP_PUBLIC === "true",
+            is_app_public: process.env.APP_IS_PUBLIC === "true",
             app_owner_company_id: null,
         };
-
-        console.log({payload});
 
         const serializedPayload = JSON.stringify(payload);
         const signature = signPayload(serializedPayload, process.env.SIGN_KEY!);
@@ -60,9 +55,9 @@ export const doCreateUserWithEmailAndPassword = async (
             body: serializedPayload,
         });
         if (result.ok) {
-            const { data } = (await result?.json()) as CreateUserWithEmailAndPasswordResponse;
+            const resultData = (await result?.json()) as CreateUser;
 
-            if (! data) {
+            if (! resultData.success) {
                 return {
                     success: false,
                     error: "Login failed",
@@ -70,13 +65,8 @@ export const doCreateUserWithEmailAndPassword = async (
                 };
             }
 
-            const { group_codes } = data as { group_codes: string[] };
-
             return {
                 success: true,
-                data: {
-                    group_codes,
-                },
             };
         } else {
             await adminAuth.deleteUser(user.uid);

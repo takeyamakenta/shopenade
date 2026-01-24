@@ -14,6 +14,7 @@ import { createUser } from "@/libs/RPCs/auth/createUser";
 import { clientReportError } from "@/libs/error/reportError";
 import { useForm } from "@/libs/form/validation";
 import { useIsLoadingStore } from "@/stores/isLoadingStore";
+import { showToast } from "@/components/ui/toast";
 
 export default function Register() {
     const { setIsLoadingStore, isLoadingStore } = useIsLoadingStore();
@@ -22,18 +23,15 @@ export default function Register() {
         try {
             setIsLoadingStore("isLoading", true);
 
-            await createUser(fields.email, fields.password, fields.name);
-            
-            // const idToken = await customTokenResult.user?.getIdToken();
-            // if (!idToken) {
-            //     throw new Error("Failed to get idToken");
-            // }
-
-            // setAuthStore({
-            //     authData: clientData,
-            //     idToken,
-            // });
-            //location.href = "/";
+            const result = await createUser(fields.email, fields.password, fields.name);
+            if (!result) {
+                throw new Error("Failed to create user");
+            }
+            showToast({
+                title: "アカウントを作成しました",
+                description: "アカウントを作成しました",
+                variant: "success",
+            });
         } catch (error: unknown) {
             clientReportError(error);
         } finally {

@@ -1,22 +1,14 @@
-import { ClientAuthData } from "@/@types/ClientAuthData";
 import { doLogin } from "@/libs/auth/doLogin";
-import { adminAuth } from "@/libs/firebase/server";
-import { updateAuthSession } from "@/sessions/authSession";
 
-export const login = async (idToken: string): Promise<ClientAuthData> => {
+export const login = async (idToken: string): Promise<{ login_role_id: number, login_group_id: number }> => {
     "use server";
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
     
-    await updateAuthSession({
-        idToken,
-        uid: decodedToken.uid,
-    });
-
     const result = await doLogin(idToken);
-    if (result.success && result.clientData) {
-        return result.clientData as ClientAuthData;
+    if (result.success && result.data) {
+        return result.data as { login_role_id: number, login_group_id: number };
+    } else if (result.success === false && "error" in result) {
+        throw new Error(String(result.error) || "Login failed");
     } else {
-        throw new Error(result.error ?? "Login failed");
+        throw new Error("Login failed");
     }
 };
-

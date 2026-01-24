@@ -1,8 +1,7 @@
 import { Accessor, Setter } from "solid-js";
 
 import {
-    signInWithCustomToken,
-    signInWithEmailAndPassword,
+    signInWithEmailAndPassword
 } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
@@ -19,14 +18,13 @@ import { login } from "@/libs/RPCs/auth/login";
 import { clientReportError } from "@/libs/error/reportError";
 import { auth } from "@/libs/firebase/client";
 import { useForm } from "@/libs/form/validation";
-import { useAuthStore } from "@/stores/authStore";
 import { useIsLoadingStore } from "@/stores/isLoadingStore";
+import { showToast } from "@/components/ui/toast";
 
 export function LoginDialog(props: {
     isOpen: Accessor<boolean>;
     setIsOpen: Setter<boolean>;
 }) {
-    const { setAuthStore } = useAuthStore();
     const { setIsLoadingStore, isLoadingStore } = useIsLoadingStore();
     const loginSubmit = async (fields: Record<string, string>) => {
         try {
@@ -36,21 +34,12 @@ export function LoginDialog(props: {
                 fields.email,
                 fields.password
             );
-            const clientData = await login(await result.user?.getIdToken());
-            const customTokenResult = await signInWithCustomToken(
-                auth,
-                clientData.customToken
-            );
-            const idToken = await customTokenResult.user?.getIdToken();
-            if (!idToken) {
-                throw new Error("Failed to get idToken");
-            }
-
-            setAuthStore({
-                authData: clientData,
-                idToken,
+            await login(await result.user?.getIdToken());
+            showToast({
+                title: "ログインしました",
+                description: "ログインしました",
+                variant: "success",
             });
-            location.reload();
         } catch (error: unknown) {
             clientReportError(error);
         } finally {
