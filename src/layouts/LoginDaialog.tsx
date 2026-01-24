@@ -13,19 +13,22 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { showToast } from "@/components/ui/toast";
 import { ValidatedTextField } from "@/components/ui/validated-text-field";
 import { login } from "@/libs/RPCs/auth/login";
+import { updateSession } from "@/libs/RPCs/auth/updateSession";
 import { clientReportError } from "@/libs/error/reportError";
 import { auth } from "@/libs/firebase/client";
 import { useForm } from "@/libs/form/validation";
+import { useAuthStore } from "@/stores/authStore";
 import { useIsLoadingStore } from "@/stores/isLoadingStore";
-import { showToast } from "@/components/ui/toast";
 
 export function LoginDialog(props: {
     isOpen: Accessor<boolean>;
     setIsOpen: Setter<boolean>;
 }) {
     const { setIsLoadingStore, isLoadingStore } = useIsLoadingStore();
+    const { setAuthStore } = useAuthStore();
     const loginSubmit = async (fields: Record<string, string>) => {
         try {
             setIsLoadingStore("isLoading", true);
@@ -34,7 +37,15 @@ export function LoginDialog(props: {
                 fields.email,
                 fields.password
             );
-            await login(await result.user?.getIdToken());
+            const loginResult = await login(await result.user?.getIdToken());
+            setAuthStore(loginResult);
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+                const newIdToken = await currentUser.getIdToken(true);
+                await updateSession({idToken: newIdToken});
+            } else {
+                console.error("currentUser is not found");
+            }
             showToast({
                 title: "ログインしました",
                 description: "ログインしました",

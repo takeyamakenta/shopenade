@@ -9,10 +9,10 @@ import { createTween } from "@solid-primitives/tween";
 import { createAsync } from "@solidjs/router";
 import { Portal } from "solid-js/web";
 
+import { defaultAuthSessionData } from "@/@types/AuthSessionData";
 import { Button } from "@/components/ui/button";
 import { LoginDialog } from "@/layouts/LoginDaialog";
 import { clearSession } from "@/libs/RPCs/auth/clearSession";
-import { doCheckClientAuthData } from "@/libs/auth/checkClientAuthData";
 import { getAuthSession } from "@/sessions/authSession";
 import { useAuthStore } from "@/stores/authStore";
 import { useIsLoadingStore } from "@/stores/isLoadingStore";
@@ -21,11 +21,7 @@ import styles from "./Layout.module.css";
 
 const initData = async () => {
     "use server";
-    const authSession = await getAuthSession();
-    if (!authSession) {
-        return null;
-    }
-    return await doCheckClientAuthData(authSession);
+    return await getAuthSession();
 };
 
 export const route = {
@@ -118,19 +114,14 @@ function NavHeader() {
 
     const logout = async () => {
         await clearSession();
-        setAuthStore({
-            authData: null,
-            idToken: null,
-        });
+        setAuthStore({...defaultAuthSessionData});
         location.reload();
     };
 
     const data = createAsync(() => initData());
 
     createEffect(() => {
-        setAuthStore({
-            authData: data(),
-        });
+        setAuthStore(data() || defaultAuthSessionData);
     });
 
     return (
@@ -144,7 +135,7 @@ function NavHeader() {
                 <div class="px-4"><span class="font-bold italic">Shopenade</span><span> 📦 🏃</span></div>
                 <Suspense fallback={<div>Loading...</div>}>
                     <div class="flex flex-row items-center justify-center gap-2 px-2">
-                        {authStore.authData ? (
+                        {authStore.idToken?.length > 0 ? (
                             <Button
                                 variant="secondary"
                                 size="sm"
@@ -162,16 +153,6 @@ function NavHeader() {
                             >
                                 ログイン
                             </Button>
-                        )}
-                        {!authStore.authData && (
-                            <></>
-                            // <Button
-                            //     variant="primary"
-                            //     size="sm"
-                            //     disabled={isLoadingStore.isLoading}
-                            // >
-                            //     登録する
-                            // </Button>
                         )}
                     </div>
                 </Suspense>

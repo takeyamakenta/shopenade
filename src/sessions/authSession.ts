@@ -18,9 +18,10 @@ export const getAuthSession = async () => {
     return session.data;
 };
 
-export const updateAuthSession = async (data: AuthSessionData) => {
+export const updateAuthSession = async (data: Partial<AuthSessionData>) => {
     const session = await useAuthSession();
-    await session.update(data);
+    const currentData = session.data;
+    await session.update({ ...currentData, ...data });
 };
 
 export const clearAuthSession = async () => {
