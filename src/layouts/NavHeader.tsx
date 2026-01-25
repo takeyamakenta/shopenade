@@ -1,3 +1,4 @@
+import { Settings } from "lucide-solid";
 import {
     Suspense,
     createEffect,
@@ -6,7 +7,7 @@ import {
 } from "solid-js";
 
 import { createTween } from "@solid-primitives/tween";
-import { createAsync } from "@solidjs/router";
+import { createAsync, useNavigate } from "@solidjs/router";
 import { Portal } from "solid-js/web";
 
 import { defaultAuthSessionData } from "@/@types/AuthSessionData";
@@ -110,6 +111,7 @@ function NavHeader() {
         return !prev;
     }, true);
 
+    const navigate = useNavigate();
     const { authStore, setAuthStore } = useAuthStore();
 
     const logout = async () => {
@@ -136,17 +138,26 @@ function NavHeader() {
                 <Suspense fallback={<div>Loading...</div>}>
                     <div class="flex flex-row items-center justify-center gap-2 px-2">
                         {authStore.idToken?.length > 0 ? (
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={logout}
-                                disabled={isLoadingStore.isLoading}
-                            >
-                                ログアウト
-                            </Button>
+                            <>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={logout}
+                                    disabled={isLoadingStore.isLoading}
+                                >
+                                    ログアウト
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={() => navigate("/settings")}
+                                    disabled={isLoadingStore.isLoading}
+                                >
+                                    <Settings class="h-4 w-4" />
+                                </Button>
+                            </>
                         ) : (
                             <Button
-                                variant="secondary"
+                                variant="primary"
                                 size="sm"
                                 onClick={() => setIsLoginDialogOpen(true)}
                                 disabled={isLoadingStore.isLoading}
