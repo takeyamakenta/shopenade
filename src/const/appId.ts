@@ -1,0 +1,1 @@
+export const appId = Number(process.env.APP_ID ?? 0);

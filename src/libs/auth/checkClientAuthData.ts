@@ -31,12 +31,12 @@ export const doCheckClientAuthData = async (
             }
             console.log("re-login...");
             const loginResult = await doLogin(authSession.idToken);
-            if (!loginResult.success || !loginResult.clientData) {
+            if (!loginResult.success || !loginResult.data) {
                 throw new Error("Failed to re-login");
             }
             // 再ログイン後のセッションを取得
-            authSession.idToken = loginResult.clientData.customToken;
-            authSession.uid = loginResult.clientData.uid;
+            authSession.idToken = loginResult.data.idToken;
+            authSession.uid = loginResult.data.uid;
 
             const clientAuthData = await doCheckClientAuthData(
                 authSession,

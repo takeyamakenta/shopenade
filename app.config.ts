@@ -24,8 +24,7 @@ export default defineConfig({
                         "GET, POST, PUT, DELETE, OPTIONS, PATCH",
                     "access-control-allow-headers":
                         "Content-Type, Authorization",
-                    "access-control-allow-origin":
-                        "http://tauri.localhost",
+                    "access-control-allow-origin": "http://tauri.localhost",
                 },
             },
         },

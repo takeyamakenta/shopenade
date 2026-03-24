@@ -42,6 +42,7 @@ export function LoginDialog(props: {
             const currentUser = auth.currentUser;
             if (currentUser) {
                 const newIdToken = await currentUser.getIdToken(true);
+                console.log(newIdToken);
                 await updateSession({idToken: newIdToken});
             } else {
                 console.error("currentUser is not found");

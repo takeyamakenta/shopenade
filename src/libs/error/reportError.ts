@@ -1,5 +1,6 @@
 import { showToast } from "@/components/ui/toast";
 import { ErrorClass } from "@/libs/form/validation";
+import { messages } from "@/libs/const/messages";
 
 
 /**
@@ -47,7 +48,7 @@ export const clientReportError = (error: unknown) => {
     const errorMessage = serializeError(error);
     showToast({
         title: "エラーが発生しました",
-        description: errorMessage,
+        description: messages[errorMessage as keyof typeof messages] ?? errorMessage,
         variant: "error",
     });
 };

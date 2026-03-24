@@ -9,6 +9,7 @@ import {
 import { createTween } from "@solid-primitives/tween";
 import { createAsync, useNavigate } from "@solidjs/router";
 import { Portal } from "solid-js/web";
+import { getRequestEvent } from "solid-js/web";
 
 import { defaultAuthSessionData } from "@/@types/AuthSessionData";
 import { Button } from "@/components/ui/button";
@@ -17,12 +18,29 @@ import { clearSession } from "@/libs/RPCs/auth/clearSession";
 import { getAuthSession } from "@/sessions/authSession";
 import { useAuthStore } from "@/stores/authStore";
 import { useIsLoadingStore } from "@/stores/isLoadingStore";
+import { usePrevilege } from "@/context/previlegeContext";
+import { collectPrevilege } from "@/libs/auth/collectPrevilege";
+import { routePrevileges } from "@/const/auth/routePrevileges";
 
 import styles from "./Layout.module.css";
 
 const initData = async () => {
     "use server";
-    return await getAuthSession();
+    const authSession = await getAuthSession();
+    const requestEvent = getRequestEvent();
+
+    const routePrevilege = routePrevileges.find(({pattern}) => {
+        return pattern.test(new URL(requestEvent?.request?.url || "").pathname);
+    });
+    if (!routePrevilege) {
+        console.log("routePrevilege is not found");
+        return {
+            authSession,
+            previleges: null,
+        };
+    }
+    const previleges = collectPrevilege(authSession?.granted_previleges || [], authSession?.role || null, routePrevilege.group_code, routePrevilege.previleges);
+    return { authSession, previleges: previleges};
 };
 
 export const route = {
@@ -120,10 +138,15 @@ function NavHeader() {
         location.reload();
     };
 
-    const data = createAsync(() => initData());
+    const initDataResult = createAsync(() => initData());
+    const previlegeContext = usePrevilege();
 
     createEffect(() => {
-        setAuthStore(data() || defaultAuthSessionData);
+        setAuthStore(initDataResult()?.authSession || defaultAuthSessionData);
+        if (previlegeContext) {
+            console.log("setPrevileges", initDataResult()?.previleges);
+            previlegeContext.setPrevileges(initDataResult()?.previleges || null);
+        }
     });
 
     return (
@@ -149,7 +172,7 @@ function NavHeader() {
                                 </Button>
                                 <Button
                                     size="sm"
-                                    onClick={() => navigate("/settings")}
+                                    onClick={() => navigate("/account")}
                                     disabled={isLoadingStore.isLoading}
                                 >
                                     <Settings class="h-4 w-4" />
