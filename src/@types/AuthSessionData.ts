@@ -1,11 +1,11 @@
+import { GrantedPrevilege } from "./GrantedPrevilege";
 import { Role } from "./Role";
-import { GrantedPrivilege } from "./GrantedPrevilege";
 
 export type AuthSessionData = {
     uid: string;
     idToken: string;
-    role: Role|null;
-    granted_previleges: GrantedPrivilege[];
+    role: Role | null;
+    granted_previleges: GrantedPrevilege[];
 };
 
 export const defaultAuthSessionData: AuthSessionData = {

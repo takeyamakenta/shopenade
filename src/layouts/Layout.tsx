@@ -1,20 +1,21 @@
 import { JSX, createSignal } from "solid-js";
 
+import { GrantedPrevilege } from "@/@types/GrantedPrevilege";
 import { Toaster } from "@/components/ui/toast";
 import { IsLoadingContext } from "@/context/isLoadingContext";
 import { PrevilegeContext } from "@/context/previlegeContext";
 
 import styles from "./Layout.module.css";
-import { GrantedPrivilege } from "@/@types/GrantedPrevilege";
 
 type Props = {
     children: JSX.Element;
 };
 
-
 function Layout(props: Props) {
     const [isLoading, setIsLoading] = createSignal(false);
-    const [previleges, setPrevileges] = createSignal<GrantedPrivilege[]|null>(null);
+    const [previleges, setPrevileges] = createSignal<GrantedPrevilege[] | null>(
+        null
+    );
     return (
         <IsLoadingContext.Provider value={{ isLoading, setIsLoading }}>
             <PrevilegeContext.Provider value={{ previleges, setPrevileges }}>

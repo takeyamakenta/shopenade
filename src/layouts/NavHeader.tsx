@@ -7,47 +7,53 @@ import {
 } from "solid-js";
 
 import { createTween } from "@solid-primitives/tween";
-import { createAsync, useNavigate } from "@solidjs/router";
+import { createAsync, useLocation, useNavigate } from "@solidjs/router";
 import { Portal } from "solid-js/web";
-import { getRequestEvent } from "solid-js/web";
 
 import { defaultAuthSessionData } from "@/@types/AuthSessionData";
 import { Button } from "@/components/ui/button";
+import { routePrevileges } from "@/const/auth/routePrevileges";
+import { usePrevilege } from "@/context/previlegeContext";
 import { LoginDialog } from "@/layouts/LoginDaialog";
 import { clearSession } from "@/libs/RPCs/auth/clearSession";
+import { collectPrevilege } from "@/libs/auth/collectPrevilege";
 import { getAuthSession } from "@/sessions/authSession";
 import { useAuthStore } from "@/stores/authStore";
 import { useIsLoadingStore } from "@/stores/isLoadingStore";
-import { usePrevilege } from "@/context/previlegeContext";
-import { collectPrevilege } from "@/libs/auth/collectPrevilege";
-import { routePrevileges } from "@/const/auth/routePrevileges";
 
 import styles from "./Layout.module.css";
 
-const initData = async () => {
+export const route = {
+    preload: (pathname: string) => initData(pathname),
+};
+
+const initData = async (pathname: string) => {
     "use server";
     const authSession = await getAuthSession();
-    const requestEvent = getRequestEvent();
 
-    const routePrevilege = routePrevileges.find(({pattern}) => {
-        return pattern.test(new URL(requestEvent?.request?.url || "").pathname);
+    const routePrevilege = routePrevileges.find(({ pattern }) => {
+        return pattern.test(pathname);
     });
     if (!routePrevilege) {
-        console.log("routePrevilege is not found");
+        console.log("routePrevilege is not found to", pathname);
         return {
             authSession,
             previleges: null,
         };
     }
-    const previleges = collectPrevilege(authSession?.granted_previleges || [], authSession?.role || null, routePrevilege.group_code, routePrevilege.previleges);
-    return { authSession, previleges: previleges};
-};
-
-export const route = {
-    preload: () => initData(),
+    const previleges = collectPrevilege(
+        authSession?.granted_previleges || [],
+        authSession?.role || null,
+        routePrevilege.group_code,
+        routePrevilege.previleges
+    );
+    console.log("---------------------------------");
+    console.log("previleges", previleges);
+    return { authSession, previleges: previleges };
 };
 
 function NavHeader() {
+    const location = useLocation();
     const { isLoadingStore } = useIsLoadingStore();
     // 基本色の定義（開始色と終了色）
     const baseFromColor = { r: 59, g: 130, b: 246 }; // 青系
@@ -134,18 +140,20 @@ function NavHeader() {
 
     const logout = async () => {
         await clearSession();
-        setAuthStore({...defaultAuthSessionData});
-        location.reload();
+        setAuthStore({ ...defaultAuthSessionData });
+        window.location.reload();
     };
 
-    const initDataResult = createAsync(() => initData());
+    const initDataResult = createAsync(() => initData(location.pathname));
     const previlegeContext = usePrevilege();
 
     createEffect(() => {
         setAuthStore(initDataResult()?.authSession || defaultAuthSessionData);
         if (previlegeContext) {
             console.log("setPrevileges", initDataResult()?.previleges);
-            previlegeContext.setPrevileges(initDataResult()?.previleges || null);
+            previlegeContext.setPrevileges(
+                initDataResult()?.previleges || null
+            );
         }
     });
 
@@ -157,7 +165,10 @@ function NavHeader() {
                     "border-image": `linear-gradient(to left, ${fromColor()}, ${toColor()} 50%, ${fromColor()}) 1`,
                 }}
             >
-                <div class="px-4"><span class="font-bold italic">Shopenade</span><span> 📦 🏃</span></div>
+                <div class="px-4">
+                    <span class="font-bold italic">Shopenade</span>
+                    <span> 📦 🏃</span>
+                </div>
                 <Suspense fallback={<div>Loading...</div>}>
                     <div class="flex flex-row items-center justify-center gap-2 px-2">
                         {authStore.idToken?.length > 0 ? (

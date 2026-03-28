@@ -3,7 +3,7 @@ import type { RoutePrevilege } from "@/@types/RoutePrevilege";
 export const routePrevileges: RoutePrevilege[] = [
         {
             path: "/",
-            pattern: /^\/[^/]*$/,
+            pattern: /^\/$/,
             group_code: "TEST_GROUP",
             previleges: ["SUPER", "USER"],
             show_menu_previleges: ["SUPER", "USER"],
@@ -14,8 +14,8 @@ export const routePrevileges: RoutePrevilege[] = [
             path: "/account",
             pattern: /^\/account[^/]*$/,
             group_code: "TEST_GROUP",
-            previleges: ["SUPER"],
-            show_menu_previleges: ["SUPER"],
+            previleges: ["NOT_SUPER", "SUPER"],
+            show_menu_previleges: ["NOT_SUPER", "SUPER"],
             menu_description: "アカウント設定",
             menu_icon: "map",
         },
