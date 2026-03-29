@@ -3,30 +3,32 @@ import { Role } from "@/@types/Role";
 import { appId } from "@/const/appId";
 
 export const collectPrevilege = (
-    grantedPrivileges: GrantedPrevilege[],
+    grantedPrevileges: GrantedPrevilege[],
     loggedInRole: Role | null,
-    group_code: string,
-    previleges: string[] | null
+    previleges_for_group_code: { [key: string]: string[] } | null
 ): GrantedPrevilege[] | null => {
-    if (previleges === null) {
+    if (previleges_for_group_code === null) {
         return null;
     }
     if (loggedInRole === null) {
         return [];
     }
-    const collected = grantedPrivileges.filter((grantedPrivilege) => {
-        return (
-            (
-                grantedPrivilege.app_id === appId &&
-                grantedPrivilege.group_code === group_code &&
-                grantedPrivilege.group_is_public === false &&
-                grantedPrivilege.group_owner_company_id === loggedInRole.owner_company_id
-            ) || (
-                grantedPrivilege.app_id === appId &&
-                grantedPrivilege.group_code === group_code &&
-                grantedPrivilege.group_is_public === true
-            )
-        ) && previleges.includes(grantedPrivilege.previlege);
+    const collected = grantedPrevileges.filter((grantedPrivilege) => {
+        const groupCodes = Object.keys(previleges_for_group_code ?? {});
+        return groupCodes.some((groupCode) => {
+            const previleges = previleges_for_group_code?.[groupCode];
+            return (
+                ((grantedPrivilege.app_id === appId &&
+                    grantedPrivilege.group_code === groupCode &&
+                    grantedPrivilege.group_is_public === false &&
+                    grantedPrivilege.group_owner_company_id ===
+                        loggedInRole.owner_company_id) ||
+                    (grantedPrivilege.app_id === appId &&
+                        grantedPrivilege.group_code === groupCode &&
+                        grantedPrivilege.group_is_public === true)) &&
+                previleges.includes(grantedPrivilege.previlege)
+            );
+        });
     });
     return collected;
 };

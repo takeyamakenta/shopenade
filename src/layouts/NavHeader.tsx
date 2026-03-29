@@ -20,6 +20,9 @@ import { collectPrevilege } from "@/libs/auth/collectPrevilege";
 import { getAuthSession } from "@/sessions/authSession";
 import { useAuthStore } from "@/stores/authStore";
 import { useIsLoadingStore } from "@/stores/isLoadingStore";
+import { checkPrevilege } from "@/libs/auth/checkPrevilege";
+import { appId } from "@/const/appId";
+import { makePrevilegesForGroupCode } from "@/libs/auth/makePrevilegesForGroupCode";
 
 import styles from "./Layout.module.css";
 
@@ -31,25 +34,24 @@ const initData = async (pathname: string) => {
     "use server";
     const authSession = await getAuthSession();
 
-    const routePrevilege = routePrevileges.find(({ pattern }) => {
+    const matchedRoutePrevileges = routePrevileges.filter(({ pattern }) => {
         return pattern.test(pathname);
     });
-    if (!routePrevilege) {
+    if (!matchedRoutePrevileges.length) {
         console.log("routePrevilege is not found to", pathname);
         return {
             authSession,
             previleges: null,
         };
     }
+    const previleges_for_group_code = makePrevilegesForGroupCode(matchedRoutePrevileges);
+
     const previleges = collectPrevilege(
         authSession?.granted_previleges || [],
         authSession?.role || null,
-        routePrevilege.group_code,
-        routePrevilege.previleges
+        previleges_for_group_code
     );
-    console.log("---------------------------------");
-    console.log("previleges", previleges);
-    return { authSession, previleges: previleges };
+    return { authSession, previleges: previleges, appId: appId};
 };
 
 function NavHeader() {
@@ -150,13 +152,39 @@ function NavHeader() {
     createEffect(() => {
         setAuthStore(initDataResult()?.authSession || defaultAuthSessionData);
         if (previlegeContext) {
-            console.log("setPrevileges", initDataResult()?.previleges);
             previlegeContext.setPrevileges(
                 initDataResult()?.previleges || null
             );
         }
+        // クライアントサイドでの表示権限チェックと、ログインチェックを行う
+        // previlegesがnull or undefinedの場合は何もしない
+        if (!initDataResult()?.previleges) {
+            return;
+        }
+        // 現在のパスが権限設定パスに一致する場合はチェックする
+        const matchedRoutePrevileges = routePrevileges.filter(({pattern}) => {
+            return pattern.test(location.pathname);
+        });
+        if(matchedRoutePrevileges.length > 0) {
+            if(!initDataResult()?.authSession?.role) {
+                navigate("/401", {
+                    replace: true,
+                });
+            }
+            console.log("initDataResult()?.previleges", initDataResult()?.previleges);
+            console.log("initDataResult()?.authSession?.role", initDataResult()?.authSession?.role);
+            console.log("matchedRoutePrevileges", matchedRoutePrevileges);
+            const hasPrevilege = matchedRoutePrevileges.some((routePrevilege) => {
+                return (true === checkPrevilege(initDataResult()?.previleges || [], initDataResult()?.authSession?.role || null, routePrevilege.group_code, routePrevilege.previleges, initDataResult()?.appId) && initDataResult()?.authSession?.role);
+            });
+            console.log("hasPrevilege", hasPrevilege);
+            if(!hasPrevilege) {
+                // navigate("/403", {
+                //     replace: true,
+                // });
+            }
+        }
     });
-
     return (
         <>
             <nav
