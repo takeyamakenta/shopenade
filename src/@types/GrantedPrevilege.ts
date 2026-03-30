@@ -6,8 +6,3 @@ export type GrantedPrevilege = {
     group_is_public: boolean;
     group_owner_company_id: number | null;
 };
-
-export type EssentialPrevilege = {
-    group_id: number;
-    previlege: string;
-};

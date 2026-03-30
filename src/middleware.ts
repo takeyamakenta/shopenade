@@ -2,8 +2,8 @@ import { redirect } from "@solidjs/router";
 import { createMiddleware } from "@solidjs/start/middleware";
 import type { FetchEvent } from "@solidjs/start/server";
 
-import { routePrevileges } from "./const/auth/routePrevileges";
 import { checkPrevilege } from "./libs/auth/checkPrevilege";
+import { routePrevileges } from "./libs/const/routePrevileges";
 import { getAuthSession } from "./sessions/authSession";
 
 /**
@@ -27,12 +27,14 @@ export default createMiddleware({
         }
         // 権限が不足している場合は403を返す
         const hasPrevilege = matchedRoutePrevileges.some((routePrevilege) => {
-          return (checkPrevilege(
-              authSession?.granted_previleges || [],
-              authSession?.role || null,
-              routePrevilege.group_code,
-              routePrevilege.previleges
-          ) === true);
+            return (
+                checkPrevilege(
+                    authSession?.granted_previleges || [],
+                    authSession?.role || null,
+                    routePrevilege.group_code,
+                    routePrevilege.previleges
+                ) === true
+            );
         });
         console.log("hasPrevilege", hasPrevilege);
         if (!hasPrevilege) {

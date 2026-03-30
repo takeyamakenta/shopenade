@@ -1,12 +1,16 @@
 import { GrantedPrevilege } from "@/@types/GrantedPrevilege";
 import { Role } from "@/@types/Role";
-import { appId } from "@/const/appId";
+import { appId as defaultAppId } from "@/const/appId";
 
 export const collectPrevilege = (
     grantedPrevileges: GrantedPrevilege[],
     loggedInRole: Role | null,
-    previleges_for_group_code: { [key: string]: string[] } | null
+    previleges_for_group_code: { [key: string]: string[] } | null,
+    appId: number | null = null
 ): GrantedPrevilege[] | null => {
+    if (appId === null) {
+        appId = defaultAppId;
+    }
     if (previleges_for_group_code === null) {
         return null;
     }

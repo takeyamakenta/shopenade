@@ -4,6 +4,7 @@ import { GrantedPrevilege } from "@/@types/GrantedPrevilege";
 import { Toaster } from "@/components/ui/toast";
 import { IsLoadingContext } from "@/context/isLoadingContext";
 import { PrevilegeContext } from "@/context/previlegeContext";
+import { AppIdContext } from "@/context/appIdContext";
 
 import styles from "./Layout.module.css";
 
@@ -16,17 +17,20 @@ function Layout(props: Props) {
     const [previleges, setPrevileges] = createSignal<GrantedPrevilege[] | null>(
         null
     );
+    const [appId, setAppId] = createSignal<number | null>(null);
     return (
-        <IsLoadingContext.Provider value={{ isLoading, setIsLoading }}>
-            <PrevilegeContext.Provider value={{ previleges, setPrevileges }}>
-                <main
-                    class={`${styles.main} flex min-h-screen w-full flex-col items-center justify-start px-1 pb-[4rem] pt-[3.2rem]`}
-                >
-                    {props.children}
-                </main>
-                <Toaster class="mb-9 mt-9" />
-            </PrevilegeContext.Provider>
-        </IsLoadingContext.Provider>
+        <AppIdContext.Provider value={{ appId, setAppId }}>
+            <IsLoadingContext.Provider value={{ isLoading, setIsLoading }}>
+                <PrevilegeContext.Provider value={{ previleges, setPrevileges }}>
+                    <main
+                        class={`${styles.main} flex min-h-screen w-full flex-col items-center justify-start px-1 pb-[4rem] pt-[3.2rem]`}
+                    >
+                        {props.children}
+                    </main>
+                    <Toaster class="mb-9 mt-9" />
+                </PrevilegeContext.Provider>
+            </IsLoadingContext.Provider>
+        </AppIdContext.Provider>
     );
 }
 
