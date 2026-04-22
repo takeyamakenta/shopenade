@@ -16,7 +16,7 @@ export default createHandler(
                         {assets}
                     </head>
                     <body>
-                        <div id="app" class="h-screen">{children}</div>
+                        <div id="app" class="h-full w-full">{children}</div>
                         {scripts}
                     </body>
                 </html>
