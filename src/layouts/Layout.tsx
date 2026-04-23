@@ -23,7 +23,7 @@ function Layout(props: Props) {
             <IsLoadingContext.Provider value={{ isLoading, setIsLoading }}>
                 <PrevilegeContext.Provider value={{ previleges, setPrevileges }}>
                     <main
-                        class={`${styles.main} flex h-[calc(100vh-1.2rem)] w-full flex-col items-center justify-start px-1 pb-[4rem] pt-[3.2rem]`}
+                        class={`${styles.main} flex h-screen w-full flex-col items-center justify-start px-1 pb-[4rem] pt-[3.2rem]`}
                     >
                         {props.children}
                     </main>

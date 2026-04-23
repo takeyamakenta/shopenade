@@ -125,8 +125,8 @@ const overlaySheetWrapperVariants = cva(
         variants: {
             openState: {
                 open: "bg-background opacity-90 pointer-events-auto",
-                "top-open": "bg-gradient-to-b from-transparent to-background pointer-events-none",
-                "bottom-open": "bg-gradient-to-t from-transparent to-background pointer-events-none",
+                "top-open": "bg-gradient-to-t from-transparent to-background pointer-events-none",
+                "bottom-open": "bg-gradient-to-b from-transparent to-background pointer-events-none",
                 closed: "bg-opacity-0 pointer-events-none",
             },
         },
@@ -135,15 +135,17 @@ const overlaySheetWrapperVariants = cva(
 );
 
 const overlaySheetFillerVariants = cva(
-    "pointer-events-none flex-1 opacity-0",
+    "",
     {
         variants: {
-            position: {
-                bottom: "",
-                top: "",
+            openState: {
+                open: "opacity-100",
+                "top-open": "opacity-100",
+                "bottom-open": "opacity-100",
+                closed: "opacity-0",
             },
         },
-        defaultVariants: { position: "bottom" },
+        defaultVariants: { openState: "closed" },
     }
 );
 
@@ -172,6 +174,7 @@ type OverlaySheetContentProps = ComponentProps<"div"> &
     VariantProps<typeof overlaySheetPanelVariants> & {
         topChildren?: JSX.Element;
         bottomChildren?: JSX.Element;
+        centerChildren?: JSX.Element;
     };
 
 const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
@@ -182,6 +185,7 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
         "size",
         "topChildren",
         "bottomChildren",
+        "centerChildren",
     ]);
     const state = () => {
         if (ctx.topOpen() && ctx.bottomOpen()) {
@@ -196,6 +200,7 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
     };
     const topState = () => (ctx.topOpen() ? "open" : "closed");
     const bottomState = () => (ctx.bottomOpen() ? "open" : "closed");
+
     return (
         <div
             data-state={state()}
@@ -214,6 +219,7 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
                         size: local.size,
                     }),
                     local.class,
+                    "h-2/5"
                 )}
                 {...others}
             >
@@ -222,10 +228,13 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
             <div
                 data-state={state()}
                 class={cn(
-                    overlaySheetFillerVariants({ position: local.position }),
-                    "opacity-0 w-full h-full"
+                    overlaySheetFillerVariants({ openState: state() }),
+                    "pointer-events-none w-full h-full inline-flex justify-center items-center",
+                    "h-1/5 min-h-[64px]"
                 )}
-            />
+            >
+                {local.centerChildren}
+            </div>
             <div
                 data-state={bottomState()}
                 class={cn(
@@ -234,6 +243,7 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
                         size: local.size,
                     }),
                     local.class,
+                    "h-2/5"
                 )}
                 {...others}
             >
