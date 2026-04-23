@@ -4,7 +4,7 @@ import {
     type Component,
     type ComponentProps,
     type JSX,
-    Ref,
+    Setter,
     createContext,
     createMemo,
     createSignal,
@@ -15,9 +15,10 @@ import { Portal, Show } from "solid-js/web";
 import { cn } from "@/libs/utils";
 
 type OverlaySheetContextValue = {
-    open: Accessor<boolean>;
-    setOpen: (v: boolean) => void;
-    toggle: () => void;
+    topOpen: Accessor<boolean>;
+    bottomOpen: Accessor<boolean>;
+    setTopOpen: (v: boolean) => void;
+    setBottomOpen: (v: boolean) => void;
 };
 
 const OverlaySheetContext = createContext<OverlaySheetContextValue>();
@@ -33,37 +34,60 @@ const useOverlaySheet = () => {
 };
 
 type OverlaySheetProps = {
-    open?: boolean;
+    topOpen?: boolean;
+    setTopOpen?: Setter<boolean>;
+    bottomOpen?: boolean;
+    setBottomOpen?: Setter<boolean>;
     defaultOpen?: boolean;
+    defaultTopOpen?: boolean;
+    defaultBottomOpen?: boolean;
     onOpenChange?: (open: boolean) => void;
+    onTopOpenChange?: (open: boolean) => void;
+    onBottomOpenChange?: (open: boolean) => void;
     children?: JSX.Element;
-    portalRef?: Ref<HTMLDivElement>;
+    portalMount?: Node;
 };
 
 const OverlaySheet: Component<OverlaySheetProps> = (props) => {
-    const [internalOpen, setInternalOpen] = createSignal(
-        props.defaultOpen ?? false
+    const [internalTopOpen, setInternalTopOpen] = createSignal(
+        props.defaultTopOpen ?? false
     );
-    const open = createMemo(() => props.open ?? internalOpen());
-    const setOpen = (v: boolean) => {
-        if (props.open === undefined) setInternalOpen(v);
-        props.onOpenChange?.(v);
+    const [internalBottomOpen, setInternalBottomOpen] = createSignal(
+        props.defaultBottomOpen ?? false
+    );
+
+    const topOpen = createMemo(() => props.topOpen ?? internalTopOpen());
+    const bottomOpen = createMemo(() => props.bottomOpen ?? internalBottomOpen());
+    const setTopOpen = (v: boolean) => {
+        if (props.topOpen === undefined) {
+            setInternalTopOpen(v);
+        } else {
+            props.setTopOpen?.(v);
+        }
+        props.onTopOpenChange?.(v);
     };
-    const toggle = () => setOpen(!open());
+    const setBottomOpen = (v: boolean) => {
+        if (props.bottomOpen === undefined) {
+            setInternalBottomOpen(v);
+        } else {
+            props.setBottomOpen?.(v);
+        }
+        props.onBottomOpenChange?.(v);
+    };
 
     return (
         <>
-            <Show when={props.portalRef}>
-                {(portalRef) => (
-                    <Portal ref={portalRef}>
-                        <OverlaySheetContext.Provider value={{ open, setOpen, toggle }}>
+            <Show when={props.portalMount}>
+                {(portalMount) => (
+                    <Portal mount={portalMount()}>
+                        <OverlaySheetContext.Provider value={{ topOpen, bottomOpen, setTopOpen, setBottomOpen }}>
                             {props.children}
                         </OverlaySheetContext.Provider>
                     </Portal>
                 )}
             </Show>
-            <Show when={!props.portalRef}>
-                <OverlaySheetContext.Provider value={{ open, setOpen, toggle }}>
+            <Show when={!props.portalMount}>
+                <OverlaySheetContext.Provider value={{ topOpen, bottomOpen, setTopOpen, setBottomOpen }}>
                     {props.children}
                 </OverlaySheetContext.Provider>
             </Show>
@@ -71,65 +95,61 @@ const OverlaySheet: Component<OverlaySheetProps> = (props) => {
     );
 };
 
-const OverlaySheetTrigger: Component<ComponentProps<"button">> = (props) => {
+const OverlaySheetTopClose: Component<ComponentProps<"button">> = (props) => {
     const ctx = useOverlaySheet();
     const [local, others] = splitProps(props, ["onClick"]);
     const handleClick: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (
         e
     ) => {
         if (typeof local.onClick === "function") local.onClick(e);
-        ctx.toggle();
+        ctx.setTopOpen(false);
     };
-    return (
-        <button
-            type="button"
-            data-state={ctx.open() ? "open" : "closed"}
-            onClick={handleClick}
-            {...others}
-        />
-    );
+    return <button type="button" onClick={handleClick} {...others} />;
 };
 
-const OverlaySheetClose: Component<ComponentProps<"button">> = (props) => {
+const OverlaySheetBottomClose: Component<ComponentProps<"button">> = (props) => {
     const ctx = useOverlaySheet();
     const [local, others] = splitProps(props, ["onClick"]);
     const handleClick: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (
         e
     ) => {
         if (typeof local.onClick === "function") local.onClick(e);
-        ctx.setOpen(false);
+        ctx.setBottomOpen(false);
     };
     return <button type="button" onClick={handleClick} {...others} />;
 };
 
 const overlaySheetWrapperVariants = cva(
-    "pointer-events-none absolute inset-0 z-40 flex overflow-hidden",
+    "absolute inset-0 z-40 flex flex-col overflow-hidden",
+    {
+        variants: {
+            openState: {
+                open: "bg-background opacity-90 pointer-events-auto",
+                "top-open": "bg-gradient-to-b from-transparent to-background pointer-events-none",
+                "bottom-open": "bg-gradient-to-t from-transparent to-background pointer-events-none",
+                closed: "bg-opacity-0 pointer-events-none",
+            },
+        },
+        defaultVariants: { openState: "closed" },
+    }
+);
+
+const overlaySheetFillerVariants = cva(
+    "pointer-events-none flex-1 opacity-0",
     {
         variants: {
             position: {
-                bottom: "flex-col",
-                top: "flex-col-reverse",
+                bottom: "",
+                top: "",
             },
         },
         defaultVariants: { position: "bottom" },
     }
 );
 
-const overlaySheetFadeVariants = cva(
-    "pointer-events-none flex-1 transition-opacity duration-300 ease-out",
-    {
-        variants: {
-            position: {
-                bottom: "bg-gradient-to-b from-transparent to-background",
-                top: "bg-gradient-to-t from-transparent to-background",
-            },
-        },
-        defaultVariants: { position: "bottom" },
-    }
-);
 
 const overlaySheetPanelVariants = cva(
-    "pointer-events-auto flex w-full flex-col overflow-y-auto bg-background shadow-lg transition-transform duration-300 ease-out",
+    "pointer-events-auto flex w-full flex-col overflow-y-auto bg-background shadow-lg transition-[transform,opacity] duration-300 ease-out data-[state=closed]:opacity-0",
     {
         variants: {
             position: {
@@ -149,7 +169,10 @@ const overlaySheetPanelVariants = cva(
 );
 
 type OverlaySheetContentProps = ComponentProps<"div"> &
-    VariantProps<typeof overlaySheetPanelVariants>;
+    VariantProps<typeof overlaySheetPanelVariants> & {
+        topChildren?: JSX.Element;
+        bottomChildren?: JSX.Element;
+    };
 
 const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
     const ctx = useOverlaySheet();
@@ -157,35 +180,64 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
         "class",
         "position",
         "size",
-        "children",
+        "topChildren",
+        "bottomChildren",
     ]);
-    const state = () => (ctx.open() ? "open" : "closed");
+    const state = () => {
+        if (ctx.topOpen() && ctx.bottomOpen()) {
+            return "open";
+        } else if (ctx.topOpen()) {
+            return "top-open";
+        } else if (ctx.bottomOpen()) {
+            return "bottom-open";
+        } else {
+            return "closed";
+        }
+    };
+    const topState = () => (ctx.topOpen() ? "open" : "closed");
+    const bottomState = () => (ctx.bottomOpen() ? "open" : "closed");
     return (
         <div
             data-state={state()}
-            aria-hidden={!ctx.open()}
+            aria-hidden={!(ctx.topOpen() || ctx.bottomOpen())}
             class={cn(
-                overlaySheetWrapperVariants({ position: local.position })
+                overlaySheetWrapperVariants({ openState: state() }),
             )}
         >
             <div
-                class={cn(
-                    overlaySheetFadeVariants({ position: local.position }),
-                    !ctx.open() && "opacity-0"
-                )}
-            />
-            <div
-                data-state={state()}
+                data-state={topState()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
                 class={cn(
                     overlaySheetPanelVariants({
-                        position: local.position,
+                        position: "top",
                         size: local.size,
                     }),
-                    local.class
+                    local.class,
                 )}
                 {...others}
             >
-                {local.children}
+                {local.topChildren}
+            </div>
+            <div
+                data-state={state()}
+                class={cn(
+                    overlaySheetFillerVariants({ position: local.position }),
+                    "opacity-0 w-full h-full"
+                )}
+            />
+            <div
+                data-state={bottomState()}
+                class={cn(
+                    overlaySheetPanelVariants({
+                        position: "bottom",
+                        size: local.size,
+                    }),
+                    local.class,
+                )}
+                {...others}
+            >
+                {local.bottomChildren}
             </div>
         </div>
     );
@@ -253,11 +305,11 @@ const OverlaySheetFooter: Component<ComponentProps<"div">> = (props) => {
 export {
     OverlaySheet,
     OverlaySheetBody,
-    OverlaySheetClose,
+    OverlaySheetTopClose,
+    OverlaySheetBottomClose,
     OverlaySheetContent,
     OverlaySheetDescription,
     OverlaySheetFooter,
     OverlaySheetHeader,
     OverlaySheetTitle,
-    OverlaySheetTrigger,
 };

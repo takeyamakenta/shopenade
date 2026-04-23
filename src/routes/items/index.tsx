@@ -20,7 +20,8 @@ import {
     OverlaySheetHeader,
     OverlaySheetTitle,                                                                                                                                                                          
     OverlaySheetBody,
-    OverlaySheetClose,                                                                                                                                                                      
+    OverlaySheetTopClose,
+    OverlaySheetBottomClose,                                                                                                                                                                      
 } from "@/components/ui/overlay-sheet"; 
 
 const initData = query(async () => {
@@ -50,8 +51,6 @@ export default function Account() {
     onMount(async () => {
         try {
             const { success, data } = await getItems();
-            console.log({data});
-            console.log({success});
             if (success && data) {
                 setItems(data);
             }
@@ -62,19 +61,46 @@ export default function Account() {
 
     onMount(async () => {});
 
-    let portalRef: HTMLDivElement | undefined = undefined;
+    let portalMount: Node | undefined = undefined;
 
+    const [isTopPanelOpen, setIsTopPanelOpen] = createSignal(false);
+    const [isBottomPanelOpen, setIsBottomPanelOpen] = createSignal(false);
+
+    const toggleTopPanel = () => {
+        if (isTopPanelOpen() && isBottomPanelOpen()) {
+            setIsTopPanelOpen(false);
+            setIsBottomPanelOpen(false);
+        } else if (isTopPanelOpen()) {
+            setIsBottomPanelOpen(true);
+        } else if (isBottomPanelOpen()) {
+            setIsTopPanelOpen(true);
+        } else {
+            setIsTopPanelOpen(true);
+            setIsBottomPanelOpen(false);
+        }
+    };
+
+    const closeTopPanel = () => {
+        setIsTopPanelOpen(false);
+    };
+    const toggleBottomPanel = () => {
+        setIsBottomPanelOpen(!isBottomPanelOpen());
+    };
+
+    const closeBottomPanel = () => {
+        setIsBottomPanelOpen(false);
+    };
 
 
     const OrdersSection = () => {
         return (
-            <div class="relative h-full w-full overflow-hidden px-4 py-8"> 
-                <section class="flex max-h-[calc(100vh-7.2rem)] flex-col items-center px-4 py-8 overflow-y-auto">
-                    <div class="mb-8 flex h-fit w-full max-w-md flex-col gap-4" ref={(el) => portalRef = el}>
+            <div class="relative h-full w-full overflow-hidden px-4 py-8">
+                <section class="flex max-h-[calc(100vh-7.2rem)] flex-col items-center px-4 py-8 overflow-y-auto" ref={(el) => portalMount = el}>
+                    <div class="mb-8 flex h-fit w-full max-w-md flex-col gap-4">
                         <For each={items()}>
                             {(item) => (
                                 <>
-                                    <Card>
+                                    <Card onClick={toggleTopPanel}>
                                         <CardHeader>
                                             <CardTitle>{item.id}</CardTitle>
                                             <CardDescription>
@@ -94,17 +120,36 @@ export default function Account() {
                         </For>
                     </div>
                 </section>
-                {/* <OverlaySheet portalRef={portalRef} open={true}>                                                                                                                                                                              
-                   <OverlaySheetContent position="bottom" size="md">                                                                                                                                       
-                        <OverlaySheetHeader>
-                            <OverlaySheetTitle>Details</OverlaySheetTitle>                                                                                                                                  
-                        </OverlaySheetHeader>                                                                                                                                                               
-                        <OverlaySheetBody>
-
-                        </OverlaySheetBody>                                                                                                                                                                 
-                        <OverlaySheetClose>Close</OverlaySheetClose>
-                    </OverlaySheetContent>                                                                                                                                                                  
-                </OverlaySheet> */}
+                <OverlaySheet portalMount={portalMount} topOpen={isTopPanelOpen()} bottomOpen={isBottomPanelOpen()} setTopOpen={setIsTopPanelOpen} setBottomOpen={setIsBottomPanelOpen}>
+                    <OverlaySheetContent position="top" size="md" 
+                        topChildren={
+                            <>
+                                <OverlaySheetHeader>
+                                    <OverlaySheetTitle>Details</OverlaySheetTitle>
+                                </OverlaySheetHeader>
+                                <OverlaySheetBody>
+                                    <div class="flex flex-col gap-1 text-sm">
+                                        top
+                                    </div>
+                                </OverlaySheetBody>
+                                <OverlaySheetTopClose>Close</OverlaySheetTopClose>
+                            </>
+                        }
+                        bottomChildren={
+                            <>
+                                <OverlaySheetHeader>
+                                    <OverlaySheetTitle>Details</OverlaySheetTitle>
+                                </OverlaySheetHeader>
+                                <OverlaySheetBody>
+                                    <div class="flex flex-col gap-1 text-sm">
+                                        bottom
+                                    </div>
+                                </OverlaySheetBody>
+                                <OverlaySheetBottomClose>Close</OverlaySheetBottomClose>
+                            </>
+                        }
+                    />
+                </OverlaySheet>
             </div>
         );
     };
