@@ -1,3 +1,4 @@
+import { ShopeeItem } from "@/@types/ShopeeItem";
 export type ItemPlatform = {
     id: number;
     platform: string;
@@ -12,4 +13,5 @@ export type ItemPlatform = {
     updated_at: string;
     item_id: number;
     integration_account_id: number;
+    shopee_item: ShopeeItem|null;
 };

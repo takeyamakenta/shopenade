@@ -1,0 +1,20 @@
+export type SellableInventory = {
+    id: number;
+    on_hand: number|null;
+    reserved: number|null;
+    safety: number;
+    inbound: number;
+    shipped: number;
+    pf_available: number;
+    created_at: string;
+    updated_at: string;
+    unit_code: string;
+    on_hand_version: number;
+    reserved_version: number;
+    last_published_to_pf: number|null;
+    last_published_at: string|null;
+    available: number|null;
+    safe_available_with_inbound: number|null;
+    safe_available: number|null;
+    pf_publishable_available: number|null;
+};
