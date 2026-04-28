@@ -229,7 +229,7 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
                 data-state={state()}
                 class={cn(
                     overlaySheetFillerVariants({ openState: state() }),
-                    "pointer-events-none w-full h-full inline-flex justify-center items-center",
+                    "pointer-events-auto w-full h-full inline-flex justify-center items-center",
                     "h-1/5 min-h-[64px]"
                 )}
             >

@@ -1,4 +1,4 @@
-import { LinkIcon } from "lucide-solid";
+import { LinkIcon, MinusIcon, PlusIcon } from "lucide-solid";
 import {
     For,
     Show,
@@ -31,6 +31,15 @@ import {
     CarouselItem,
 } from "@/components/ui/carousel";
 import {
+    Drawer,
+    DrawerClose,
+    DrawerContent,
+    DrawerDescription,
+    DrawerFooter,
+    DrawerHeader,
+    DrawerTitle,
+} from "@/components/ui/drawer";
+import {
     OverlaySheet,
     OverlaySheetBody,
     OverlaySheetBottomClose,
@@ -43,6 +52,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import NavFooter from "@/layouts/NavFooter";
 import NavHeader from "@/layouts/NavHeader";
 import { getItems } from "@/libs/RPCs/item/getItems";
+import { mergeVariant } from "@/libs/RPCs/item/mergeVariant";
 import { getShopeeShops } from "@/libs/RPCs/oauth/getShopeeShops";
 import { nationalFlags } from "@/libs/const/nationalFlags";
 import { truncateText } from "@/libs/text/truncateText";
@@ -136,8 +146,8 @@ export default function Account() {
         createSignal<ItemPackingStyle | null>(null);
     const [selectedTopItemSku, setSelectedTopItemSku] =
         createSignal<ItemSku | null>(null);
-    const [selectedTopItemVariantIDs, setSelectedTopItemVariantIDs] =
-        createSignal<number[]>([]);
+    const [selectedTopItemVariantID, setSelectedTopItemVariantID] =
+        createSignal<number | null>(null);
 
     const [selectedBottomItem, setSelectedBottomItem] =
         createSignal<Item | null>(null);
@@ -344,6 +354,67 @@ export default function Account() {
         );
     });
 
+    const selectedTopItemVariant = createMemo(() => {
+        return topItemVariantOptions()?.find(
+            (variant) => variant.item_variant.id === selectedTopItemVariantID()
+        );
+    });
+
+    const selectedTopItemPlatform = createMemo(() => {
+        return selectedTopItemVariant()?.item_platform;
+    });
+
+    const [isQuantityChangeDrawerOpen, setIsQuantityChangeDrawerOpen] =
+        createSignal(false);
+
+    const handleMergeVariant = async (): Promise<void> => {
+        console.log("handleMergeVariant");
+        try {
+            if (
+                !selectedTopItem() ||
+                !selectedTopItemPackingStyle() ||
+                !selectedTopItemSku() ||
+                !selectedBottomItemVariantIDs()?.length
+            ) {
+                throw new Error("選択中のアイテムが存在しません");
+            }
+            const { success, error } = await mergeVariant(
+                selectedTopItem()?.id as number,
+                selectedTopItemPackingStyle()?.id as number,
+                selectedTopItemSku()?.id as number,
+                selectedBottomItemVariantIDs() as number[]
+            );
+            if (success) {
+                return;
+            } else {
+                throw new Error(error ?? "Failed to merge variant");
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const ItemSkuImageCarousel = (props: { itemSku: ItemSku|null }) => {
+        return (
+            <Show when={props.itemSku?.images?.length ?? 0 > 0}>
+                <Carousel>
+                    <CarouselContent>
+                        <For each={props.itemSku?.images ?? []}>
+                            {(image) => (
+                                <CarouselItem>
+                                    <img
+                                        src={image.image_url}
+                                        alt={image.image_id}
+                                    />
+                                </CarouselItem>
+                            )}
+                        </For>
+                    </CarouselContent>
+                </Carousel>
+            </Show>
+        );
+    };
+
     const TopPanel = () => {
         return (
             <>
@@ -358,6 +429,7 @@ export default function Account() {
                     </OverlaySheetTitle>
                 </OverlaySheetHeader>
                 <OverlaySheetBody class="h-full w-full flex-col gap-2">
+                    <ItemSkuImageCarousel itemSku={selectedTopItemSku()} />
                     <Show when={selectedTopItem()}>
                         <div class="flex h-[32px] w-full flex-col gap-1 text-sm">
                             <Carousel
@@ -429,10 +501,12 @@ export default function Account() {
                     </Show>
                     <Show when={selectedTopItemPackingStyle()}>
                         <ToggleGroup
-                            multiple
+                            multiple={false}
                             orientation="vertical"
                             class="flex flex-col gap-1 overflow-y-auto"
-                            onChange={setSelectedTopItemVariantIDs}
+                            value={
+                                selectedTopItemVariantID()?.toString() ?? null
+                            }
                         >
                             <For each={topItemVariantOptions()}>
                                 {(variantObject) => (
@@ -444,8 +518,8 @@ export default function Account() {
                                             <div class="w-[24px]">
                                                 <ShopeeLogo />
                                             </div>
-                                            <div class="flex w-[calc(100%-24px)] flex-row">
-                                                <div class="w-[calc(100%-64px)] text-nowrap text-left">
+                                            <div class="flex w-[calc(100%-24px)] flex-row items-center">
+                                                <div class="w-[calc(100%-160px)] text-nowrap text-left">
                                                     {nationalFlags[
                                                         iaIdToShopMap()?.get(
                                                             variantObject
@@ -473,6 +547,24 @@ export default function Account() {
                                                     {variantObject.item_variant
                                                         .sellable_inventory
                                                         ?.unit_code ?? ""}
+                                                </div>
+                                                <div class="inline-flex w-[96px] flex-col items-center justify-end text-right">
+                                                    <Button
+                                                        variant="tertiary"
+                                                        size="xs"
+                                                        onClick={() => {
+                                                            setSelectedTopItemVariantID(
+                                                                variantObject
+                                                                    .item_variant
+                                                                    .id
+                                                            );
+                                                            setIsQuantityChangeDrawerOpen(
+                                                                true
+                                                            );
+                                                        }}
+                                                    >
+                                                        {"数量変更"}
+                                                    </Button>
                                                 </div>
                                             </div>
                                         </ToggleGroupItem>
@@ -575,7 +667,12 @@ export default function Account() {
                             multiple
                             orientation="vertical"
                             class="flex flex-col gap-1 overflow-y-auto"
-                            onChange={setSelectedBottomItemVariantIDs}
+                            // ToggleGroup は value を string[] で返すため、number[] に変換して保持する
+                            onChange={(values) =>
+                                setSelectedBottomItemVariantIDs(
+                                    (values as string[]).map(Number)
+                                )
+                            }
                         >
                             <For each={bottomItemVariantOptions()}>
                                 {(variantObject) => (
@@ -850,7 +947,7 @@ export default function Account() {
                             <>
                                 <Show when={isItemMergeable()}>
                                     <div class="flex flex-col gap-1 text-sm">
-                                        <Button onClick={closeTopPanel}>
+                                        <Button onClick={handleMergeVariant}>
                                             <LinkIcon />
                                         </Button>
                                     </div>
@@ -864,11 +961,101 @@ export default function Account() {
         );
     };
 
+    function DrawerSection(props: {
+        isOpen: boolean;
+        setIsOpen: (isOpen: boolean) => void;
+    }) {
+        return (
+            <Drawer open={props.isOpen} onOpenChange={props.setIsOpen}>
+                <DrawerContent class="pb-[64px]">
+                    <div class="mx-auto w-full max-w-sm">
+                        <DrawerHeader>
+                            <DrawerTitle>在庫数量を変更/確定します</DrawerTitle>
+                            <DrawerDescription class="flex flex-col gap-1 text-sm">
+                                <p>
+                                    name:
+                                    {
+                                        selectedTopItemPlatform()?.shopee_item
+                                            ?.item_name
+                                    }
+                                </p>
+                                <p>
+                                    item code:
+                                    {
+                                        selectedTopItemPlatform()
+                                            ?.shopee_item_code
+                                    }
+                                </p>
+                                <p>
+                                    sku code:
+                                    {selectedTopItemVariant()?.item_variant.platform_item_variant_id.split(
+                                        ":"
+                                    )[1] === "0"
+                                        ? "SKUなしアイテム"
+                                        : selectedTopItemVariant()?.item_variant.platform_item_variant_id.split(
+                                              ":"
+                                          )[1]}
+                                </p>
+                            </DrawerDescription>
+                        </DrawerHeader>
+                        <div class="p-4 pb-0">
+                            <div class="flex items-center justify-center space-x-2">
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    class="size-8 shrink-0 rounded-full"
+                                >
+                                    <MinusIcon class="size-4" />
+                                    <span class="sr-only">Decrease</span>
+                                </Button>
+                                <div class="flex-1 text-center">
+                                    <div class="text-7xl font-bold tracking-tighter">
+                                        {}
+                                    </div>
+                                    <div class="text-[0.70rem] uppercase text-muted-foreground">
+                                        在庫数量
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    class="size-8 shrink-0 rounded-full"
+                                >
+                                    <PlusIcon class="size-4" />
+                                    <span class="sr-only">Increase</span>
+                                </Button>
+                            </div>
+                        </div>
+                        <DrawerFooter class="w-full items-center">
+                            <Button
+                                variant="confirm"
+                                class="w-full min-w-[120px]"
+                            >
+                                Submit
+                            </Button>
+                            <DrawerClose
+                                as={Button<"button">}
+                                variant="inert"
+                                class="w-full min-w-[120px]"
+                            >
+                                Cancel
+                            </DrawerClose>
+                        </DrawerFooter>
+                    </div>
+                </DrawerContent>
+            </Drawer>
+        );
+    }
+
     return (
         <>
             <NavHeader />
             <Suspense fallback={<div>Loading...</div>}>
                 <ItemsSection />
+                <DrawerSection
+                    isOpen={isQuantityChangeDrawerOpen()}
+                    setIsOpen={setIsQuantityChangeDrawerOpen}
+                />
             </Suspense>
             <NavFooter />
         </>

@@ -1,3 +1,5 @@
+import { ItemImage } from "./ItemImage";
+
 export type ItemSku = {
     id: number;
     pindex: number;
@@ -10,6 +12,7 @@ export type ItemSku = {
     yahoo_sku_code: string;
     description: string;
     hash_code: string;
+    images: ItemImage[]|null;
     metadata: Record<string, unknown>;
     created_at: string;
     updated_at: string;
