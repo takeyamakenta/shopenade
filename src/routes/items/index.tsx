@@ -1,5 +1,6 @@
 import { LinkIcon, MinusIcon, PlusIcon } from "lucide-solid";
 import {
+    ComponentProps,
     For,
     Show,
     Suspense,
@@ -7,6 +8,7 @@ import {
     createMemo,
     createSignal,
     onMount,
+    splitProps,
 } from "solid-js";
 
 import { createAsync, query } from "@solidjs/router";
@@ -51,6 +53,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import NavFooter from "@/layouts/NavFooter";
 import NavHeader from "@/layouts/NavHeader";
+import { getItemSku } from "@/libs/RPCs/item/getItemSku";
 import { getItems } from "@/libs/RPCs/item/getItems";
 import { mergeVariant } from "@/libs/RPCs/item/mergeVariant";
 import { getShopeeShops } from "@/libs/RPCs/oauth/getShopeeShops";
@@ -394,10 +397,16 @@ export default function Account() {
         }
     };
 
-    const ItemSkuImageCarousel = (props: { itemSku: ItemSku|null }) => {
+    const [originalSelectedTopItemSku, setOriginalSelectedTopItemSku] =
+        createSignal<ItemSku | null>(null);
+
+    const ItemSkuImageCarousel = (
+        props: ComponentProps<"div"> & { itemSku: ItemSku | null }
+    ) => {
+        const [local, others] = splitProps(props, ["class"]);
         return (
             <Show when={props.itemSku?.images?.length ?? 0 > 0}>
-                <Carousel>
+                <Carousel class={local.class} {...others}>
                     <CarouselContent>
                         <For each={props.itemSku?.images ?? []}>
                             {(image) => (
@@ -429,76 +438,89 @@ export default function Account() {
                     </OverlaySheetTitle>
                 </OverlaySheetHeader>
                 <OverlaySheetBody class="h-full w-full flex-col gap-2">
-                    <ItemSkuImageCarousel itemSku={selectedTopItemSku()} />
-                    <Show when={selectedTopItem()}>
-                        <div class="flex h-[32px] w-full flex-col gap-1 text-sm">
-                            <Carousel
-                                orientation="vertical"
-                                setApi={setTopSkuCarouselApi}
-                            >
-                                <CarouselContent class="h-[64px] w-full">
-                                    <For each={topItemSkuOptions()}>
-                                        {(sku) => (
-                                            <CarouselItem class="md:basis-1/2 lg:basis-1/3">
-                                                <div class="flex flex-col gap-1 text-sm">
-                                                    <p>{sku.hash_code}</p>
-                                                </div>
-                                            </CarouselItem>
-                                        )}
-                                    </For>
-                                </CarouselContent>
-                            </Carousel>
+                    <div class="flex h-fit flex-row justify-start gap-1">
+                        <div class="flex w-3/4 flex-col gap-1">
+                            <Show when={selectedTopItem()}>
+                                <div class="flex h-[32px] w-full flex-col gap-1 text-sm">
+                                    <Carousel
+                                        orientation="vertical"
+                                        setApi={setTopSkuCarouselApi}
+                                    >
+                                        <CarouselContent class="h-[64px] w-full">
+                                            <For each={topItemSkuOptions()}>
+                                                {(sku) => (
+                                                    <CarouselItem class="md:basis-1/2 lg:basis-1/3">
+                                                        <div class="flex flex-col gap-1 text-sm">
+                                                            <p>
+                                                                {sku.hash_code}
+                                                            </p>
+                                                        </div>
+                                                    </CarouselItem>
+                                                )}
+                                            </For>
+                                        </CarouselContent>
+                                    </Carousel>
+                                </div>
+                            </Show>
+                            <Show when={selectedTopItemSku()}>
+                                <div class="flex h-[32px] w-full flex-col gap-1 text-sm">
+                                    <Carousel
+                                        orientation="vertical"
+                                        setApi={setTopPackingStyleCarouselApi}
+                                    >
+                                        <CarouselContent class="h-[64px] w-full">
+                                            <For
+                                                each={topPackingStyleOptions()}
+                                            >
+                                                {(packingStyle) => (
+                                                    <CarouselItem class="md:basis-1/2 lg:basis-1/3">
+                                                        <div class="flex flex-col gap-1 text-sm">
+                                                            <p>
+                                                                {"📦"}
+                                                                {
+                                                                    packingStyle.packing_width
+                                                                }{" "}
+                                                                x{" "}
+                                                                {
+                                                                    packingStyle.packing_height
+                                                                }{" "}
+                                                                x{" "}
+                                                                {
+                                                                    packingStyle.packing_length
+                                                                }{" "}
+                                                                {
+                                                                    packingStyle.length_unit_code
+                                                                }{" "}
+                                                                {
+                                                                    packingStyle.packing_weight
+                                                                }{" "}
+                                                                {
+                                                                    packingStyle.weight_unit_code
+                                                                }{" "}
+                                                                {
+                                                                    packingStyle.factor_by_base_unit
+                                                                }{" "}
+                                                                {
+                                                                    selectedTopItem()
+                                                                        ?.base_unit_code
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                    </CarouselItem>
+                                                )}
+                                            </For>
+                                        </CarouselContent>
+                                    </Carousel>
+                                </div>
+                            </Show>
                         </div>
-                    </Show>
-                    <Show when={selectedTopItemSku()}>
-                        <div class="flex h-[32px] w-full flex-col gap-1 text-sm">
-                            <Carousel
-                                orientation="vertical"
-                                setApi={setTopPackingStyleCarouselApi}
-                            >
-                                <CarouselContent class="h-[64px] w-full">
-                                    <For each={topPackingStyleOptions()}>
-                                        {(packingStyle) => (
-                                            <CarouselItem class="md:basis-1/2 lg:basis-1/3">
-                                                <div class="flex flex-col gap-1 text-sm">
-                                                    <p>
-                                                        {"📦"}
-                                                        {
-                                                            packingStyle.packing_width
-                                                        }{" "}
-                                                        x{" "}
-                                                        {
-                                                            packingStyle.packing_height
-                                                        }{" "}
-                                                        x{" "}
-                                                        {
-                                                            packingStyle.packing_length
-                                                        }{" "}
-                                                        {
-                                                            packingStyle.length_unit_code
-                                                        }{" "}
-                                                        {
-                                                            packingStyle.packing_weight
-                                                        }{" "}
-                                                        {
-                                                            packingStyle.weight_unit_code
-                                                        }{" "}
-                                                        {
-                                                            packingStyle.factor_by_base_unit
-                                                        }{" "}
-                                                        {
-                                                            selectedTopItem()
-                                                                ?.base_unit_code
-                                                        }
-                                                    </p>
-                                                </div>
-                                            </CarouselItem>
-                                        )}
-                                    </For>
-                                </CarouselContent>
-                            </Carousel>
+                        <div class="flex h-full max-h-[96px] w-1/4 max-w-[96px] items-center justify-end">
+                            <ItemSkuImageCarousel
+                                class="h-full w-full"
+                                itemSku={selectedTopItemSku()}
+                            />
                         </div>
-                    </Show>
+                    </div>
                     <Show when={selectedTopItemPackingStyle()}>
                         <ToggleGroup
                             multiple={false}
@@ -965,37 +987,74 @@ export default function Account() {
         isOpen: boolean;
         setIsOpen: (isOpen: boolean) => void;
     }) {
+        createAsync(async () => {
+            try {
+                // reload original selected top item sku
+                console.log(selectedTopItemVariant());
+                const [itemId, modelId] = selectedTopItemVariant()?.item_variant.platform_item_variant_id?.split("|") ?? [];
+                console.log(selectedTopItemVariant()?.item_variant.platform_item_variant_id);
+                console.log(itemId, modelId);
+                if (!itemId || !modelId || !selectedTopItemVariant()?.item_variant?.integration_account_id) {
+                    throw new Error("Invalid item variant id");
+                }
+                const internalSkuCode = modelId === "0" ? `:${itemId}` : modelId;
+                const { success, data, error } = await getItemSku(
+                    selectedTopItemVariant()?.item_variant?.integration_account_id as number,
+                    internalSkuCode as string
+                );
+                if (success && data) {
+                    setOriginalSelectedTopItemSku(data);
+                } else {
+                    throw new Error(
+                        error ?? "Failed to get original selected top item sku"
+                    );
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        });
+
         return (
             <Drawer open={props.isOpen} onOpenChange={props.setIsOpen}>
                 <DrawerContent class="pb-[64px]">
                     <div class="mx-auto w-full max-w-sm">
                         <DrawerHeader>
                             <DrawerTitle>在庫数量を変更/確定します</DrawerTitle>
-                            <DrawerDescription class="flex flex-col gap-1 text-sm">
-                                <p>
-                                    name:
-                                    {
-                                        selectedTopItemPlatform()?.shopee_item
-                                            ?.item_name
-                                    }
-                                </p>
-                                <p>
-                                    item code:
-                                    {
-                                        selectedTopItemPlatform()
-                                            ?.shopee_item_code
-                                    }
-                                </p>
-                                <p>
-                                    sku code:
-                                    {selectedTopItemVariant()?.item_variant.platform_item_variant_id.split(
-                                        ":"
-                                    )[1] === "0"
-                                        ? "SKUなしアイテム"
-                                        : selectedTopItemVariant()?.item_variant.platform_item_variant_id.split(
-                                              ":"
-                                          )[1]}
-                                </p>
+                            <DrawerDescription class="flex flex-col gap-1">
+                                <div class="flex flex-row gap-1">
+                                    <div class="flex w-3/4 flex-col justify-center gap-1 text-sm">
+                                        <p>
+                                            name:
+                                            {
+                                                selectedTopItemPlatform()
+                                                    ?.shopee_item?.item_name
+                                            }
+                                        </p>
+                                        <p>
+                                            item code:
+                                            {
+                                                selectedTopItemPlatform()
+                                                    ?.shopee_item_code
+                                            }
+                                        </p>
+                                        <p>
+                                            sku code:
+                                            {selectedTopItemVariant()?.item_variant.platform_item_variant_id.split(
+                                                ":"
+                                            )[1] === "0"
+                                                ? "SKUなしアイテム"
+                                                : selectedTopItemVariant()?.item_variant.platform_item_variant_id.split(
+                                                      ":"
+                                                  )[1]}
+                                        </p>
+                                    </div>
+                                    <div class="flex h-full max-h-[96px] w-1/4 max-w-[96px] items-center justify-end">
+                                        <ItemSkuImageCarousel
+                                            class="h-full w-full"
+                                            itemSku={originalSelectedTopItemSku()}
+                                        />
+                                    </div>
+                                </div>
                             </DrawerDescription>
                         </DrawerHeader>
                         <div class="p-4 pb-0">
