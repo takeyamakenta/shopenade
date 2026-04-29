@@ -1,18 +1,18 @@
 import { getAuthSession } from "@/sessions/authSession";
 
-export interface MergeVariantResponse {
+export interface SetVariantStockResponse {
     success: boolean;
     error?: string;
 }
 
-export const doMergeVariant = async (toItemID: number, toItemPackingStyleID: number, toItemSkuID: number, fromItemVariantIDs: number[]): Promise<MergeVariantResponse> => {
+export const doSetVariantStock = async (itemVariantID: number, onhandStockNumber: number): Promise<SetVariantStockResponse> => {
     const authSession = await getAuthSession();
     const idToken = authSession?.idToken;
     if (!idToken) {
         throw new Error("ログインしていません");
     }
     const response = await fetch(
-        `${process.env.BACKEND_URL}v1/items/variants/merge`,
+        `${process.env.BACKEND_URL}v1/items/variants/stock/set`,
         {
             method: "POST",
             headers: {
@@ -20,10 +20,8 @@ export const doMergeVariant = async (toItemID: number, toItemPackingStyleID: num
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                to_item_id: toItemID,
-                to_item_packing_style_id: toItemPackingStyleID,
-                to_item_sku_id: toItemSkuID,
-                from_item_variant_ids: fromItemVariantIDs,
+                item_variant_id: itemVariantID,
+                on_hand_stock: onhandStockNumber,
             }),
         }
     );

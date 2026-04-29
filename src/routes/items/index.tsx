@@ -61,9 +61,13 @@ import NavHeader from "@/layouts/NavHeader";
 import { getItemSku } from "@/libs/RPCs/item/getItemSku";
 import { getItems } from "@/libs/RPCs/item/getItems";
 import { mergeVariant } from "@/libs/RPCs/item/mergeVariant";
+import { setVariantStock } from "@/libs/RPCs/item/setVariantStock";
 import { getShopeeShops } from "@/libs/RPCs/oauth/getShopeeShops";
 import { nationalFlags } from "@/libs/const/nationalFlags";
 import { truncateText } from "@/libs/text/truncateText";
+import { showToast } from "@/components/ui/toast";
+import { serializeError } from "@/libs/error/reportError";
+import { ItemVariant } from "@/@types/ItemVariant";
 
 const initData = query(async () => {
     "use server";
@@ -376,7 +380,6 @@ export default function Account() {
         createSignal(false);
 
     const handleMergeVariant = async (): Promise<void> => {
-        console.log("handleMergeVariant");
         try {
             if (
                 !selectedTopItem() ||
@@ -393,12 +396,21 @@ export default function Account() {
                 selectedBottomItemVariantIDs() as number[]
             );
             if (success) {
+                showToast({
+                    title: "アイテムをマージしました",
+                    description: "アイテムをマージしました",
+                    variant: "success",
+                });
                 return;
             } else {
                 throw new Error(error ?? "Failed to merge variant");
             }
         } catch (error) {
-            console.error(error);
+            showToast({
+                title: "エラーが発生しました",
+                description: serializeError(error),
+                variant: "error",
+            });
         }
     };
 
@@ -602,7 +614,7 @@ export default function Account() {
                                                     </div>
                                                     <div class="inline-flex w-[96px] flex-col items-center justify-end text-right">
                                                         <Button
-                                                            variant="tertiary"
+                                                            variant="primary"
                                                             size="xs"
                                                             onClick={() => {
                                                                 setSelectedTopItemVariantID(
@@ -1018,26 +1030,65 @@ export default function Account() {
         isOpen: boolean;
         setIsOpen: (isOpen: boolean) => void;
     }) {
+        const [editingOnhandStockNumber, setEditingOnhandStockNumber] =
+            createSignal<number | null>(null);
+        const handleSetVariantStock = async (): Promise<void> => {
+            try {
+                if (!selectedTopItemVariant()) {
+                    throw new Error("Invalid item variant id");
+                }
+                if (editingOnhandStockNumber() === null) {
+                    throw new Error("Invalid onhand stock number");
+                }
+                const { success, error } = await setVariantStock(
+                    selectedTopItemVariant()?.item_variant.id as number,
+                    editingOnhandStockNumber() as number
+                );
+                if (success) {
+                    const targetItemVariant = topItemVariantOptions()?.find(variant => variant.item_variant.id === selectedTopItemVariant()?.item_variant.id);
+                    if (targetItemVariant) {
+                        targetItemVariant.item_variant.sellable_inventory.on_hand = editingOnhandStockNumber() as number;
+                        setSelectedTopItem({...selectedTopItem() as Item});
+                    }
+
+                    showToast({
+                        title: "在庫数量を変更しました",
+                        description: "在庫数量を変更しました",
+                        variant: "success",
+                    });
+                    return;
+                } else {
+                    throw new Error(error ?? "Failed to set variant stock");
+                }
+            } catch (error) {
+                showToast({
+                    title: "エラーが発生しました",
+                    description: serializeError(error),
+                    variant: "error",
+                });
+            }
+        };
         createAsync(async () => {
             try {
-                // reload original selected top item sku
                 console.log(selectedTopItemVariant());
+                setEditingOnhandStockNumber(
+                    selectedTopItemVariant()?.item_variant.sellable_inventory
+                        ?.on_hand ?? null
+                );
+                // reload original selected top item sku
                 const [itemId, modelId] =
                     selectedTopItemVariant()?.item_variant.platform_item_variant_id?.split(
                         "|"
                     ) ?? [];
-                console.log(
-                    selectedTopItemVariant()?.item_variant
-                        .platform_item_variant_id
-                );
-                console.log(itemId, modelId);
+                
                 if (
                     !itemId ||
                     !modelId ||
                     !selectedTopItemVariant()?.item_variant
                         ?.integration_account_id
                 ) {
-                    throw new Error("Invalid item variant id");
+                    console.warn("item id or model id or integration account id is not found");
+                    return;
                 }
                 const internalSkuCode =
                     modelId === "0" ? `:${itemId}` : modelId;
@@ -1054,7 +1105,11 @@ export default function Account() {
                     );
                 }
             } catch (error) {
-                console.error(error);
+                showToast({
+                    title: "エラーが発生しました",
+                    description: serializeError(error),
+                    variant: "error",
+                });
             }
         });
 
@@ -1104,25 +1159,47 @@ export default function Account() {
                         <div class="p-4 pb-0">
                             <div class="flex items-center justify-center space-x-2">
                                 <Button
-                                    variant="secondary"
+                                    variant="primary"
                                     size="icon"
                                     class="size-8 shrink-0 rounded-full"
+                                    onClick={() => {
+                                        setEditingOnhandStockNumber(
+                                            editingOnhandStockNumber()
+                                                ? (editingOnhandStockNumber() as number) -
+                                                      1
+                                                : 0
+                                        );
+                                    }}
                                 >
                                     <MinusIcon class="size-4" />
                                     <span class="sr-only">Decrease</span>
                                 </Button>
                                 <div class="flex-1 text-center">
-                                    <div class="text-7xl font-bold tracking-tighter">
-                                        {}
+                                    <div class="text-2xl font-bold tracking-tighter">
+                                        {editingOnhandStockNumber() === null
+                                            ? "在庫未登録"
+                                            : editingOnhandStockNumber()}
                                     </div>
                                     <div class="text-[0.70rem] uppercase text-muted-foreground">
-                                        在庫数量
+                                        {
+                                            selectedTopItemVariant()
+                                                ?.item_variant
+                                                .sellable_inventory?.unit_code
+                                        }
                                     </div>
                                 </div>
                                 <Button
-                                    variant="secondary"
+                                    variant="primary"
                                     size="icon"
                                     class="size-8 shrink-0 rounded-full"
+                                    onClick={() => {
+                                        setEditingOnhandStockNumber(
+                                            editingOnhandStockNumber()
+                                                ? (editingOnhandStockNumber() as number) +
+                                                      1
+                                                : 1
+                                        );
+                                    }}
                                 >
                                     <PlusIcon class="size-4" />
                                     <span class="sr-only">Increase</span>
@@ -1133,6 +1210,9 @@ export default function Account() {
                             <Button
                                 variant="confirm"
                                 class="w-full min-w-[120px]"
+                                onClick={() => {
+                                    handleSetVariantStock();
+                                }}
                             >
                                 Submit
                             </Button>
