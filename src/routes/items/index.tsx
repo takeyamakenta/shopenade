@@ -1,4 +1,9 @@
-import { LinkIcon, MinusIcon, PlusIcon } from "lucide-solid";
+import {
+    ChevronsUpDownIcon,
+    LinkIcon,
+    MinusIcon,
+    PlusIcon,
+} from "lucide-solid";
 import {
     ComponentProps,
     For,
@@ -438,43 +443,53 @@ export default function Account() {
                     </OverlaySheetTitle>
                 </OverlaySheetHeader>
                 <OverlaySheetBody class="h-full w-full flex-col gap-2">
-                    <div class="flex h-fit flex-row justify-start gap-1">
-                        <div class="flex w-3/4 flex-col gap-1">
-                            <Show when={selectedTopItem()}>
-                                <div class="flex h-[32px] w-full flex-col gap-1 text-sm">
-                                    <Carousel
-                                        orientation="vertical"
-                                        setApi={setTopSkuCarouselApi}
-                                    >
-                                        <CarouselContent class="h-[64px] w-full">
-                                            <For each={topItemSkuOptions()}>
-                                                {(sku) => (
-                                                    <CarouselItem class="md:basis-1/2 lg:basis-1/3">
-                                                        <div class="flex flex-col gap-1 text-sm">
-                                                            <p>
+                    <div class="justify-satrt flex h-fit flex-row items-center gap-4">
+                        <div class="flex h-[96px] w-3/4 flex-col items-center justify-center gap-4">
+                            <div class="flex h-[96px] w-full flex-col items-center justify-start gap-4 text-sm">
+                                <Show when={selectedTopItem()}>
+                                    <div class="relative flex h-[32px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
+                                        <Carousel
+                                            orientation="vertical"
+                                            setApi={setTopSkuCarouselApi}
+                                        >
+                                            <CarouselContent class="h-[48px] w-full">
+                                                <For each={topItemSkuOptions()}>
+                                                    {(sku) => (
+                                                        <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
+                                                            <p class="text-md">
                                                                 {sku.hash_code}
                                                             </p>
-                                                        </div>
-                                                    </CarouselItem>
-                                                )}
-                                            </For>
-                                        </CarouselContent>
-                                    </Carousel>
-                                </div>
-                            </Show>
-                            <Show when={selectedTopItemSku()}>
-                                <div class="flex h-[32px] w-full flex-col gap-1 text-sm">
-                                    <Carousel
-                                        orientation="vertical"
-                                        setApi={setTopPackingStyleCarouselApi}
-                                    >
-                                        <CarouselContent class="h-[64px] w-full">
-                                            <For
-                                                each={topPackingStyleOptions()}
+                                                        </CarouselItem>
+                                                    )}
+                                                </For>
+                                            </CarouselContent>
+                                            <Show
+                                                when={
+                                                    (topItemSkuOptions()
+                                                        ?.length ?? 0) > 1
+                                                }
                                             >
-                                                {(packingStyle) => (
-                                                    <CarouselItem class="md:basis-1/2 lg:basis-1/3">
-                                                        <div class="flex flex-col gap-1 text-sm">
+                                                <p class="absolute right-0 top-[8px]">
+                                                    <ChevronsUpDownIcon class="size-4" />
+                                                </p>
+                                            </Show>
+                                        </Carousel>
+                                    </div>
+                                </Show>
+                                <Show when={selectedTopItemSku()}>
+                                    <div class="relative flex h-[32px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
+                                        <Carousel
+                                            orientation="vertical"
+                                            setApi={
+                                                setTopPackingStyleCarouselApi
+                                            }
+                                        >
+                                            <CarouselContent class="h-[48px] w-full">
+                                                <For
+                                                    each={topPackingStyleOptions()}
+                                                >
+                                                    {(packingStyle) => (
+                                                        <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
                                                             <p>
                                                                 {"📦"}
                                                                 {
@@ -505,96 +520,112 @@ export default function Account() {
                                                                         ?.base_unit_code
                                                                 }
                                                             </p>
-                                                        </div>
-                                                    </CarouselItem>
-                                                )}
-                                            </For>
-                                        </CarouselContent>
-                                    </Carousel>
-                                </div>
-                            </Show>
+                                                        </CarouselItem>
+                                                    )}
+                                                </For>
+                                            </CarouselContent>
+                                        </Carousel>
+                                        <Show
+                                            when={
+                                                (topPackingStyleOptions()
+                                                    ?.length ?? 0) > 1
+                                            }
+                                        >
+                                            <p class="absolute right-0 top-[8px]">
+                                                <ChevronsUpDownIcon class="size-4" />
+                                            </p>
+                                        </Show>
+                                    </div>
+                                </Show>
+                            </div>
                         </div>
-                        <div class="flex h-full max-h-[96px] w-1/4 max-w-[96px] items-center justify-end">
+                        <div class="flex h-full max-h-[96px] w-1/4 max-w-[96px] items-center justify-center">
                             <ItemSkuImageCarousel
                                 class="h-full w-full"
                                 itemSku={selectedTopItemSku()}
                             />
                         </div>
                     </div>
-                    <Show when={selectedTopItemPackingStyle()}>
-                        <ToggleGroup
-                            multiple={false}
-                            orientation="vertical"
-                            class="flex flex-col gap-1 overflow-y-auto"
-                            value={
-                                selectedTopItemVariantID()?.toString() ?? null
-                            }
-                        >
-                            <For each={topItemVariantOptions()}>
-                                {(variantObject) => (
-                                    <>
-                                        <ToggleGroupItem
-                                            class="flex w-full flex-row items-center justify-start gap-1"
-                                            value={variantObject.item_variant.id.toString()}
-                                        >
-                                            <div class="w-[24px]">
-                                                <ShopeeLogo />
-                                            </div>
-                                            <div class="flex w-[calc(100%-24px)] flex-row items-center">
-                                                <div class="w-[calc(100%-160px)] text-nowrap text-left">
-                                                    {nationalFlags[
-                                                        iaIdToShopMap()?.get(
-                                                            variantObject
-                                                                .item_platform
-                                                                ?.integration_account_id ??
-                                                                0
-                                                        )
-                                                            ?.region as keyof typeof nationalFlags
-                                                    ] ?? "Unknown"}
-                                                    {truncateText(
-                                                        iaIdToShopMap()?.get(
-                                                            variantObject
-                                                                .item_platform
-                                                                ?.integration_account_id ??
-                                                                0
-                                                        )?.shop_name ??
-                                                            "unknown shop",
-                                                        10
-                                                    )}
+                    <div class="flex h-fit flex-row items-center justify-center gap-1">
+                        <Show when={selectedTopItemPackingStyle()}>
+                            <ToggleGroup
+                                multiple={false}
+                                orientation="vertical"
+                                class="flex flex-col gap-1 overflow-y-auto"
+                                value={
+                                    selectedTopItemVariantID()?.toString() ??
+                                    null
+                                }
+                            >
+                                <For each={topItemVariantOptions()}>
+                                    {(variantObject) => (
+                                        <>
+                                            <ToggleGroupItem
+                                                class="flex w-full flex-row items-center justify-start gap-1"
+                                                value={variantObject.item_variant.id.toString()}
+                                            >
+                                                <div class="w-[24px]">
+                                                    <ShopeeLogo />
                                                 </div>
-                                                <div class="w-[64px] text-right">
-                                                    {variantObject.item_variant
-                                                        .sellable_inventory
-                                                        ?.on_hand ?? "N/A"}{" "}
-                                                    {variantObject.item_variant
-                                                        .sellable_inventory
-                                                        ?.unit_code ?? ""}
-                                                </div>
-                                                <div class="inline-flex w-[96px] flex-col items-center justify-end text-right">
-                                                    <Button
-                                                        variant="tertiary"
-                                                        size="xs"
-                                                        onClick={() => {
-                                                            setSelectedTopItemVariantID(
+                                                <div class="flex w-[calc(100%-24px)] flex-row items-center">
+                                                    <div class="w-[calc(100%-160px)] text-nowrap text-left">
+                                                        {nationalFlags[
+                                                            iaIdToShopMap()?.get(
                                                                 variantObject
-                                                                    .item_variant
-                                                                    .id
-                                                            );
-                                                            setIsQuantityChangeDrawerOpen(
-                                                                true
-                                                            );
-                                                        }}
-                                                    >
-                                                        {"数量変更"}
-                                                    </Button>
+                                                                    .item_platform
+                                                                    ?.integration_account_id ??
+                                                                    0
+                                                            )
+                                                                ?.region as keyof typeof nationalFlags
+                                                        ] ?? "Unknown"}
+                                                        {truncateText(
+                                                            iaIdToShopMap()?.get(
+                                                                variantObject
+                                                                    .item_platform
+                                                                    ?.integration_account_id ??
+                                                                    0
+                                                            )?.shop_name ??
+                                                                "unknown shop",
+                                                            10
+                                                        )}
+                                                    </div>
+                                                    <div class="w-[64px] text-right">
+                                                        {variantObject
+                                                            .item_variant
+                                                            .sellable_inventory
+                                                            ?.on_hand ??
+                                                            "N/A"}{" "}
+                                                        {variantObject
+                                                            .item_variant
+                                                            .sellable_inventory
+                                                            ?.unit_code ?? ""}
+                                                    </div>
+                                                    <div class="inline-flex w-[96px] flex-col items-center justify-end text-right">
+                                                        <Button
+                                                            variant="tertiary"
+                                                            size="xs"
+                                                            onClick={() => {
+                                                                setSelectedTopItemVariantID(
+                                                                    variantObject
+                                                                        .item_variant
+                                                                        .id
+                                                                );
+                                                                setIsQuantityChangeDrawerOpen(
+                                                                    true
+                                                                );
+                                                            }}
+                                                        >
+                                                            {"数量変更"}
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </ToggleGroupItem>
-                                    </>
-                                )}
-                            </For>
-                        </ToggleGroup>
-                    </Show>
+                                            </ToggleGroupItem>
+                                        </>
+                                    )}
+                                </For>
+                            </ToggleGroup>
+                        </Show>
+                    </div>
                 </OverlaySheetBody>
                 <OverlaySheetTopClose>Close</OverlaySheetTopClose>
             </>
@@ -991,15 +1022,28 @@ export default function Account() {
             try {
                 // reload original selected top item sku
                 console.log(selectedTopItemVariant());
-                const [itemId, modelId] = selectedTopItemVariant()?.item_variant.platform_item_variant_id?.split("|") ?? [];
-                console.log(selectedTopItemVariant()?.item_variant.platform_item_variant_id);
+                const [itemId, modelId] =
+                    selectedTopItemVariant()?.item_variant.platform_item_variant_id?.split(
+                        "|"
+                    ) ?? [];
+                console.log(
+                    selectedTopItemVariant()?.item_variant
+                        .platform_item_variant_id
+                );
                 console.log(itemId, modelId);
-                if (!itemId || !modelId || !selectedTopItemVariant()?.item_variant?.integration_account_id) {
+                if (
+                    !itemId ||
+                    !modelId ||
+                    !selectedTopItemVariant()?.item_variant
+                        ?.integration_account_id
+                ) {
                     throw new Error("Invalid item variant id");
                 }
-                const internalSkuCode = modelId === "0" ? `:${itemId}` : modelId;
+                const internalSkuCode =
+                    modelId === "0" ? `:${itemId}` : modelId;
                 const { success, data, error } = await getItemSku(
-                    selectedTopItemVariant()?.item_variant?.integration_account_id as number,
+                    selectedTopItemVariant()?.item_variant
+                        ?.integration_account_id as number,
                     internalSkuCode as string
                 );
                 if (success && data) {
