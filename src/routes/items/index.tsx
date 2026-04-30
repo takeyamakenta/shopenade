@@ -14,7 +14,6 @@ import {
     createSignal,
     onMount,
     splitProps,
-    Accessor,
 } from "solid-js";
 
 import { createAsync, query } from "@solidjs/router";
@@ -22,6 +21,7 @@ import { createAsync, query } from "@solidjs/router";
 import { Item } from "@/@types/Item";
 import { ItemPackingStyle } from "@/@types/ItemPackingStyle";
 import { ItemSku } from "@/@types/ItemSku";
+import { ItemVariant } from "@/@types/ItemVariant";
 import { ShopeeShopAccount } from "@/@types/ShopeeShopAccount";
 import { ShopeeLogo } from "@/components/images/shopeeLogo";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,7 @@ import {
     OverlaySheetTitle,
     OverlaySheetTopClose,
 } from "@/components/ui/overlay-sheet";
+import { showToast } from "@/components/ui/toast";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import NavFooter from "@/layouts/NavFooter";
 import NavHeader from "@/layouts/NavHeader";
@@ -65,11 +66,8 @@ import { mergeVariant } from "@/libs/RPCs/item/mergeVariant";
 import { setVariantStock } from "@/libs/RPCs/item/setVariantStock";
 import { getShopeeShops } from "@/libs/RPCs/oauth/getShopeeShops";
 import { nationalFlags } from "@/libs/const/nationalFlags";
-import { truncateText } from "@/libs/text/truncateText";
-import { showToast } from "@/components/ui/toast";
 import { serializeError } from "@/libs/error/reportError";
-import { ItemVariant } from "@/@types/ItemVariant";
-import { ItemPlatform } from "@/@types/ItemPlatform";
+import { truncateText } from "@/libs/text/truncateText";
 
 const initData = query(async () => {
     "use server";
@@ -87,34 +85,6 @@ const initData = query(async () => {
 
 export const route = {
     preload: () => initData(),
-};
-
-const resolveItemPackingStyle = (
-    item: Item
-): ItemPackingStyle | ItemPackingStyle[] | null => {
-    if (item.default_packing_style?.packing_weight) {
-        return item.default_packing_style;
-    } else if (item.item_packing_styles?.length) {
-        if (
-            item.item_packing_styles.every(
-                (packingStyle) =>
-                    packingStyle.packing_weight ===
-                        (item.item_packing_styles?.[0].packing_weight ?? 0) &&
-                    packingStyle.packing_width ===
-                        (item.item_packing_styles?.[0].packing_width ?? 0) &&
-                    packingStyle.packing_height ===
-                        (item.item_packing_styles?.[0].packing_height ?? 0) &&
-                    packingStyle.packing_length ===
-                        (item.item_packing_styles?.[0].packing_length ?? 0)
-            )
-        ) {
-            return item.item_packing_styles[0];
-        } else {
-            return item.item_packing_styles;
-        }
-    } else {
-        return null;
-    }
 };
 
 export default function Account() {
@@ -174,32 +144,51 @@ export default function Account() {
     // 選択中アイテムから「default」を除外した SKU 候補（複数 SKU 時のみフィルタ）
     const topItemSkuOptions = createMemo(() => {
         const skus = selectedTopItem()?.item_skus;
+        console.log({ skus });
         if (!skus) return undefined;
         return skus.length > 1
             ? skus.filter((sku) => sku.hash_code !== "default")
             : skus;
     });
 
-    // 選択中 SKU に紐づく ItemVariant 一覧
-    const topAvailableVariants = createMemo(() => {
-        const sku = selectedTopItemSku();
-        if (!sku) return undefined;
-        return selectedTopItem()?.item_variants?.filter(
-            (variant) => variant.item_sku_id === sku.id
-        );
-    });
-
     // 選択中 SKU に紐づく梱包スタイルの候補
     const topPackingStyleOptions = createMemo(() => {
-        const variants = topAvailableVariants();
-        if (!variants) return undefined;
-        const packingStyleIds = variants.map(
-            (variant) => variant.item_packing_style_id
-        );
-        return selectedTopItem()?.item_packing_styles?.filter((packingStyle) =>
-            packingStyleIds.includes(packingStyle.id)
-        );
+        return selectedTopItem()?.item_packing_styles;
     });
+
+    const resolveItemPlatform = (itemVariant: ItemVariant) => {
+        return (
+            items()
+                ?.flatMap((item) => item.item_platforms)
+                ?.find(
+                    (platform) =>
+                        (platform?.id ?? 0) ===
+                        (itemVariant.item_platform_id ?? 0)
+                ) ?? null
+        );
+    };
+
+    const resolveItemPackingStyle = (itemVariant: ItemVariant) => {
+        return (
+            items()
+                ?.flatMap((item) => item.item_packing_styles)
+                ?.find(
+                    (packingStyle) =>
+                        (packingStyle?.id ?? 0) ===
+                        (itemVariant.item_packing_style_id ?? 0)
+                ) ?? null
+        );
+    };
+
+    const resolveItemSku = (itemVariant: ItemVariant) => {
+        return (
+            items()
+                ?.flatMap((item) => item.item_skus)
+                ?.find(
+                    (sku) => (sku?.id ?? 0) === (itemVariant.item_sku_id ?? 0)
+                ) ?? null
+        );
+    };
 
     const topItemVariantOptions = createMemo(() => {
         const sku = selectedTopItemSku();
@@ -213,21 +202,44 @@ export default function Account() {
                     variant.item_sku_id === sku.id
             )
             .map((variant) => ({
-                item_platform:
-                    selectedTopItem()?.item_platforms?.find(
-                        (platform) => platform.id === variant.item_platform_id
-                    ) ?? null,
-                item_packing_style:
-                    selectedTopItem()?.item_packing_styles?.find(
-                        (packingStyle) =>
-                            packingStyle.id === variant.item_packing_style_id
-                    ) ?? null,
-                item_sku:
-                    selectedTopItem()?.item_skus?.find(
-                        (sku) => sku.id === variant.item_sku_id
-                    ) ?? null,
+                item_platform: resolveItemPlatform(variant),
+                item_packing_style: resolveItemPackingStyle(variant),
+                item_sku: resolveItemSku(variant),
                 item_variant: variant,
             }));
+    });
+
+    const hashPackingStyle = (packingStyle: ItemPackingStyle) => {
+        return `${packingStyle.packing_width}x${packingStyle.packing_height}x${packingStyle.packing_length} ${packingStyle.length_unit_code} ${packingStyle.packing_weight} ${packingStyle.weight_unit_code} ${packingStyle.factor_by_base_unit} ${packingStyle.unit_code}`;
+    };
+
+    const groupItemVariantsByPackingStyleHash = (
+        itemVariants: ItemVariant[]
+    ): Record<string, ItemVariant[]> => {
+        const groups: Record<string, ItemVariant[]> = {};
+        if (!itemVariants) return groups;
+        for (const variant of itemVariants) {
+            const packingStyle = resolveItemPackingStyle(variant);
+            if (!packingStyle) continue;
+            const key = hashPackingStyle(packingStyle);
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(variant);
+        }
+        return groups;
+    };
+
+    const topGroupedItemVariants = createMemo(() => {
+        return groupItemVariantsByPackingStyleHash(
+            selectedTopItem()?.item_variants ?? []
+        );
+    });
+
+    const bottomGroupedItemVariants = createMemo(() => {
+        return groupItemVariantsByPackingStyleHash(
+            selectedBottomItem()?.item_variants ?? []
+        );
     });
 
     const onSelectTopItemSku = (api: NonNullable<ReturnType<CarouselApi>>) => {
@@ -239,8 +251,14 @@ export default function Account() {
     const onSelectTopItemPackingStyle = (
         api: NonNullable<ReturnType<CarouselApi>>
     ) => {
-        const selectedItemPackingStyle =
-            topPackingStyleOptions()?.[api.selectedScrollSnap()];
+        console.log({ selectedScrollSnap: api.selectedScrollSnap() });
+        const itemPackingStyleHash = Object.keys(
+            topGroupedItemVariants()
+        )[api.selectedScrollSnap()];
+        const selectedItemPackingStyle = topPackingStyleOptions()?.find(
+            (packingStyle) =>
+                hashPackingStyle(packingStyle) === itemPackingStyleHash
+        );
         setSelectedTopItemPackingStyle(selectedItemPackingStyle ?? null);
     };
 
@@ -292,44 +310,20 @@ export default function Account() {
         );
     });
 
-    const bottomItemVariantOptions = createMemo(() => {
-        const sku = selectedBottomItemSku();
-        if (!sku) return undefined;
-        const packingStyle = selectedBottomItemPackingStyle();
-        if (!packingStyle) return undefined;
-        return selectedBottomItem()
-            ?.item_variants?.filter(
-                (variant) =>
-                    variant.item_packing_style_id === packingStyle.id &&
-                    variant.item_sku_id === sku.id
-            )
-            .map((variant) => ({
-                item_platform:
-                    selectedBottomItem()?.item_platforms?.find(
-                        (platform) => platform.id === variant.item_platform_id
-                    ) ?? null,
-                item_packing_style:
-                    selectedBottomItem()?.item_packing_styles?.find(
-                        (packingStyle) =>
-                            packingStyle.id === variant.item_packing_style_id
-                    ) ?? null,
-                item_sku:
-                    selectedBottomItem()?.item_skus?.find(
-                        (sku) => sku.id === variant.item_sku_id
-                    ) ?? null,
-                item_variant: variant,
-            }));
-    });
-
     const onSelectBottomItemSku = (
         api: NonNullable<ReturnType<CarouselApi>>
     ) => {
         const selectedItemSku =
             bottomItemSkuOptions()?.[api.selectedScrollSnap()];
         setSelectedBottomItemSku(selectedItemSku ?? null);
-        setSelectedBottomItemPackingStyle(
-            bottomPackingStyleOptions()?.[0] ?? null
+        const itemPackingStyleHash = Object.keys(
+            bottomGroupedItemVariants()
+        )[api.selectedScrollSnap()];
+        const selectedItemPackingStyle = bottomPackingStyleOptions()?.find(
+            (packingStyle) =>
+                hashPackingStyle(packingStyle) === itemPackingStyleHash
         );
+        setSelectedBottomItemPackingStyle(selectedItemPackingStyle ?? null);
     };
 
     const onSelectBottomItemPackingStyle = (
@@ -369,13 +363,16 @@ export default function Account() {
     });
 
     const selectedTopItemVariant = createMemo(() => {
-        return topItemVariantOptions()?.find(
-            (variant) => variant.item_variant.id === selectedTopItemVariantID()
+        return selectedTopItem()?.item_variants?.find(
+            (variant) => variant.id === selectedTopItemVariantID()
         );
     });
 
     const selectedTopItemPlatform = createMemo(() => {
-        return selectedTopItemVariant()?.item_platform;
+        if (!selectedTopItemVariant()) {
+            return undefined;
+        }
+        return resolveItemPlatform(selectedTopItemVariant() as ItemVariant);
     });
 
     const [isQuantityChangeDrawerOpen, setIsQuantityChangeDrawerOpen] =
@@ -409,11 +406,15 @@ export default function Account() {
                     const splicedItem = data.spliced_item;
                     // アイテム一覧を更新
                     const itemsCopy = [...items()];
-                    const mergedItemIndex = itemsCopy.findIndex(item => item.id === mergedItem.id);
+                    const mergedItemIndex = itemsCopy.findIndex(
+                        (item) => item.id === mergedItem.id
+                    );
                     if (mergedItemIndex !== -1) {
                         itemsCopy[mergedItemIndex] = mergedItem;
                     }
-                    const splicedItemIndex = itemsCopy.findIndex(item => item.id === splicedItem.id);
+                    const splicedItemIndex = itemsCopy.findIndex(
+                        (item) => item.id === splicedItem.id
+                    );
                     if (splicedItemIndex !== -1) {
                         itemsCopy[splicedItemIndex] = splicedItem;
                     }
@@ -519,38 +520,16 @@ export default function Account() {
                                         >
                                             <CarouselContent class="h-[48px] w-full">
                                                 <For
-                                                    each={topPackingStyleOptions()}
+                                                    each={Object.keys(
+                                                        topGroupedItemVariants()
+                                                    )}
                                                 >
-                                                    {(packingStyle) => (
+                                                    {(packingStyleHash) => (
                                                         <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
                                                             <p>
-                                                                {"📦"}
+                                                                {"📦"}{" "}
                                                                 {
-                                                                    packingStyle.packing_width
-                                                                }{" "}
-                                                                x{" "}
-                                                                {
-                                                                    packingStyle.packing_height
-                                                                }{" "}
-                                                                x{" "}
-                                                                {
-                                                                    packingStyle.packing_length
-                                                                }{" "}
-                                                                {
-                                                                    packingStyle.length_unit_code
-                                                                }{" "}
-                                                                {
-                                                                    packingStyle.packing_weight
-                                                                }{" "}
-                                                                {
-                                                                    packingStyle.weight_unit_code
-                                                                }{" "}
-                                                                {
-                                                                    packingStyle.factor_by_base_unit
-                                                                }{" "}
-                                                                {
-                                                                    selectedTopItem()
-                                                                        ?.base_unit_code
+                                                                    packingStyleHash
                                                                 }
                                                             </p>
                                                         </CarouselItem>
@@ -560,8 +539,9 @@ export default function Account() {
                                         </Carousel>
                                         <Show
                                             when={
-                                                (topPackingStyleOptions()
-                                                    ?.length ?? 0) > 1
+                                                (Object.keys(
+                                                    topGroupedItemVariants()
+                                                )?.length ?? 0) > 1
                                             }
                                         >
                                             <p class="absolute right-0 top-[8px]">
@@ -590,12 +570,24 @@ export default function Account() {
                                     null
                                 }
                             >
-                                <For each={topItemVariantOptions()}>
-                                    {(variantObject) => (
+                                <For
+                                    each={(
+                                        topGroupedItemVariants()[
+                                            hashPackingStyle(
+                                                selectedTopItemPackingStyle() as ItemPackingStyle
+                                            )
+                                        ] ?? []
+                                    ).filter(
+                                        (variant) =>
+                                            variant.item_sku_id ===
+                                            selectedTopItemSku()?.id
+                                    )}
+                                >
+                                    {(variant) => (
                                         <>
                                             <ToggleGroupItem
                                                 class="flex w-full flex-row items-center justify-start gap-1"
-                                                value={variantObject.item_variant.id.toString()}
+                                                value={variant.id.toString()}
                                             >
                                                 <div class="w-[24px]">
                                                     <ShopeeLogo />
@@ -604,8 +596,9 @@ export default function Account() {
                                                     <div class="w-[calc(100%-160px)] text-nowrap text-left">
                                                         {nationalFlags[
                                                             iaIdToShopMap()?.get(
-                                                                variantObject
-                                                                    .item_platform
+                                                                resolveItemPlatform(
+                                                                    variant
+                                                                )
                                                                     ?.integration_account_id ??
                                                                     0
                                                             )
@@ -613,8 +606,9 @@ export default function Account() {
                                                         ] ?? "Unknown"}
                                                         {truncateText(
                                                             iaIdToShopMap()?.get(
-                                                                variantObject
-                                                                    .item_platform
+                                                                resolveItemPlatform(
+                                                                    variant
+                                                                )
                                                                     ?.integration_account_id ??
                                                                     0
                                                             )?.shop_name ??
@@ -623,13 +617,11 @@ export default function Account() {
                                                         )}
                                                     </div>
                                                     <div class="w-[64px] text-right">
-                                                        {variantObject
-                                                            .item_variant
+                                                        {variant
                                                             .sellable_inventory
                                                             ?.on_hand ??
                                                             "N/A"}{" "}
-                                                        {variantObject
-                                                            .item_variant
+                                                        {variant
                                                             .sellable_inventory
                                                             ?.unit_code ?? ""}
                                                     </div>
@@ -639,9 +631,7 @@ export default function Account() {
                                                             size="xs"
                                                             onClick={() => {
                                                                 setSelectedTopItemVariantID(
-                                                                    variantObject
-                                                                        .item_variant
-                                                                        .id
+                                                                    variant.id
                                                                 );
                                                                 setIsQuantityChangeDrawerOpen(
                                                                     true
@@ -679,134 +669,165 @@ export default function Account() {
                     </OverlaySheetTitle>
                 </OverlaySheetHeader>
                 <OverlaySheetBody class="h-full w-full flex-col gap-2">
-                    <Show when={selectedBottomItem()}>
-                        <div class="flex h-[32px] w-full flex-col gap-1 text-sm">
-                            <Carousel
-                                orientation="vertical"
-                                setApi={setBottomSkuCarouselApi}
-                            >
-                                <CarouselContent class="h-[64px] w-full">
-                                    <For each={bottomItemSkuOptions()}>
-                                        {(sku) => (
-                                            <CarouselItem class="md:basis-1/2 lg:basis-1/3">
-                                                <div class="flex flex-col gap-1 text-sm">
-                                                    <p>{sku.hash_code}</p>
-                                                </div>
-                                            </CarouselItem>
-                                        )}
-                                    </For>
-                                </CarouselContent>
-                            </Carousel>
-                        </div>
-                    </Show>
-                    <Show when={selectedBottomItemSku()}>
-                        <div class="flex h-[32px] w-full flex-col gap-1 text-sm">
-                            <Carousel
-                                orientation="vertical"
-                                setApi={setBottomPackingStyleCarouselApi}
-                            >
-                                <CarouselContent class="h-[64px] w-full">
-                                    <For each={bottomPackingStyleOptions()}>
-                                        {(packingStyle) => (
-                                            <CarouselItem class="md:basis-1/2 lg:basis-1/3">
-                                                <div class="flex flex-col gap-1 text-sm">
-                                                    <p>
-                                                        {"📦"}
-                                                        {
-                                                            packingStyle.packing_width
-                                                        }{" "}
-                                                        x{" "}
-                                                        {
-                                                            packingStyle.packing_height
-                                                        }{" "}
-                                                        x{" "}
-                                                        {
-                                                            packingStyle.packing_length
-                                                        }{" "}
-                                                        {
-                                                            packingStyle.length_unit_code
-                                                        }{" "}
-                                                        {
-                                                            packingStyle.packing_weight
-                                                        }{" "}
-                                                        {
-                                                            packingStyle.weight_unit_code
-                                                        }{" "}
-                                                        {
-                                                            packingStyle.factor_by_base_unit
-                                                        }{" "}
-                                                        {
-                                                            selectedBottomItem()
-                                                                ?.base_unit_code
-                                                        }
-                                                    </p>
-                                                </div>
-                                            </CarouselItem>
-                                        )}
-                                    </For>
-                                </CarouselContent>
-                            </Carousel>
-                        </div>
-                    </Show>
-                    <Show when={selectedBottomItemPackingStyle()}>
-                        <ToggleGroup
-                            multiple
-                            orientation="vertical"
-                            class="flex flex-col gap-1 overflow-y-auto"
-                            // ToggleGroup は value を string[] で返すため、number[] に変換して保持する
-                            onChange={(values) =>
-                                setSelectedBottomItemVariantIDs(
-                                    (values as string[]).map(Number)
-                                )
-                            }
-                        >
-                            <For each={bottomItemVariantOptions()}>
-                                {(variantObject) => (
-                                    <>
-                                        <ToggleGroupItem
-                                            class="flex w-full flex-row items-center justify-start gap-1"
-                                            value={variantObject.item_variant.id.toString()}
+                    <div class="justify-satrt flex h-fit flex-row items-center gap-4">
+                        <div class="flex h-[96px] w-3/4 flex-col items-center justify-center gap-4">
+                            <div class="flex h-[96px] w-full flex-col items-center justify-start gap-4 text-sm">
+                                <Show when={selectedBottomItem()}>
+                                    <div class="relative flex h-[32px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
+                                        <Carousel
+                                            orientation="vertical"
+                                            setApi={setBottomSkuCarouselApi}
                                         >
-                                            <div class="w-[24px]">
-                                                <ShopeeLogo />
-                                            </div>
-                                            <div class="flex w-[calc(100%-24px)] flex-row">
-                                                <div class="w-[calc(100%-64px)] text-nowrap text-left">
-                                                    {nationalFlags[
-                                                        iaIdToShopMap()?.get(
-                                                            variantObject
-                                                                .item_platform
-                                                                ?.integration_account_id ??
-                                                                0
-                                                        )
-                                                            ?.region as keyof typeof nationalFlags
-                                                    ] ?? "Unknown"}
-                                                    {truncateText(
-                                                        iaIdToShopMap()?.get(
-                                                            variantObject
-                                                                .item_platform
-                                                                ?.integration_account_id ??
-                                                                0
-                                                        )?.shop_name ??
-                                                            "unknown shop",
-                                                        10
+                                            <CarouselContent class="h-[48px] w-full">
+                                                <For
+                                                    each={bottomItemSkuOptions()}
+                                                >
+                                                    {(sku) => (
+                                                        <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
+                                                            <p class="text-md">
+                                                                {sku.hash_code}
+                                                            </p>
+                                                        </CarouselItem>
                                                     )}
+                                                </For>
+                                            </CarouselContent>
+                                            <Show
+                                                when={
+                                                    (bottomItemSkuOptions()
+                                                        ?.length ?? 0) > 1
+                                                }
+                                            >
+                                                <p class="absolute right-0 top-[8px]">
+                                                    <ChevronsUpDownIcon class="size-4" />
+                                                </p>
+                                            </Show>
+                                        </Carousel>
+                                    </div>
+                                </Show>
+                                <Show when={selectedBottomItemSku()}>
+                                    <div class="relative flex h-[32px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
+                                        <Carousel
+                                            orientation="vertical"
+                                            setApi={
+                                                setBottomPackingStyleCarouselApi
+                                            }
+                                        >
+                                            <CarouselContent class="h-[48px] w-full">
+                                                <For
+                                                    each={Object.keys(
+                                                        bottomGroupedItemVariants()
+                                                    )}
+                                                >
+                                                    {(packingStyleHash) => (
+                                                        <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
+                                                            <p>
+                                                                {"📦"}{" "}
+                                                                {
+                                                                    packingStyleHash
+                                                                }
+                                                            </p>
+                                                        </CarouselItem>
+                                                    )}
+                                                </For>
+                                            </CarouselContent>
+                                        </Carousel>
+                                        <Show
+                                            when={
+                                                (Object.keys(
+                                                    bottomGroupedItemVariants()
+                                                )?.length ?? 0) > 1
+                                            }
+                                        >
+                                            <p class="absolute right-0 top-[8px]">
+                                                <ChevronsUpDownIcon class="size-4" />
+                                            </p>
+                                        </Show>
+                                    </div>
+                                </Show>
+                            </div>
+                        </div>
+                        <div class="flex h-full max-h-[96px] w-1/4 max-w-[96px] items-center justify-center">
+                            <ItemSkuImageCarousel
+                                class="h-full w-full"
+                                itemSku={selectedBottomItemSku()}
+                            />
+                        </div>
+                    </div>
+                    <div class="flex h-fit flex-row items-center justify-center gap-1">
+                        <Show when={selectedBottomItemPackingStyle()}>
+                            <ToggleGroup
+                                multiple={true}
+                                orientation="vertical"
+                                class="flex flex-col gap-1 overflow-y-auto"
+                                onChange={(values) =>
+                                    setSelectedBottomItemVariantIDs(
+                                        (values as string[]).map(Number)
+                                    )
+                                }
+                            >
+                                <For
+                                    each={(
+                                        bottomGroupedItemVariants()[
+                                            hashPackingStyle(
+                                                selectedBottomItemPackingStyle() as ItemPackingStyle
+                                            )
+                                        ] ?? []
+                                    ).filter(
+                                        (variant) =>
+                                            variant.item_sku_id ===
+                                            selectedBottomItemSku()?.id
+                                    )}
+                                >
+                                    {(variant) => (
+                                        <>
+                                            <ToggleGroupItem
+                                                class="flex w-full flex-row items-center justify-start gap-1"
+                                                value={variant.id.toString()}
+                                            >
+                                                <div class="w-[24px]">
+                                                    <ShopeeLogo />
                                                 </div>
-                                                <div class="w-[64px] text-right">
-                                                    {variantObject.item_variant
-                                                        .sellable_inventory
-                                                        ?.on_hand ?? "N/A"}{" "}
-                                                    {variantObject.item_variant
-                                                        .sellable_inventory
-                                                        ?.unit_code ?? ""}
+                                                <div class="flex w-[calc(100%-24px)] flex-row items-center">
+                                                    <div class="w-[calc(100%-64px)] text-nowrap text-left">
+                                                        {nationalFlags[
+                                                            iaIdToShopMap()?.get(
+                                                                resolveItemPlatform(
+                                                                    variant
+                                                                )
+                                                                    ?.integration_account_id ??
+                                                                    0
+                                                            )
+                                                                ?.region as keyof typeof nationalFlags
+                                                        ] ?? "Unknown"}
+                                                        {truncateText(
+                                                            iaIdToShopMap()?.get(
+                                                                resolveItemPlatform(
+                                                                    variant
+                                                                )
+                                                                    ?.integration_account_id ??
+                                                                    0
+                                                            )?.shop_name ??
+                                                                "unknown shop",
+                                                            10
+                                                        )}
+                                                    </div>
+                                                    <div class="w-[64px] text-right">
+                                                        {variant
+                                                            .sellable_inventory
+                                                            ?.on_hand ??
+                                                            "N/A"}{" "}
+                                                        {variant
+                                                            .sellable_inventory
+                                                            ?.unit_code ?? ""}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </ToggleGroupItem>
-                                    </>
-                                )}
-                            </For>
-                        </ToggleGroup>
-                    </Show>
+                                            </ToggleGroupItem>
+                                        </>
+                                    )}
+                                </For>
+                            </ToggleGroup>
+                        </Show>
+                    </div>
                 </OverlaySheetBody>
                 <OverlaySheetBottomClose>Close</OverlaySheetBottomClose>
             </>
@@ -841,8 +862,6 @@ export default function Account() {
                     <div class="mb-8 flex h-fit w-full max-w-md flex-col gap-4">
                         <For each={items()}>
                             {(item) => {
-                                const packingStyle =
-                                    resolveItemPackingStyle(item);
                                 return (
                                     <>
                                         <Card
@@ -868,148 +887,100 @@ export default function Account() {
                                                 </CardDescription>
                                             </CardHeader>
                                             <CardContent>
-                                                <div class="flex flex-col gap-1 text-sm">
-                                                    <div class="flex flex-col items-end gap-1">
-                                                        <Show
-                                                            when={Array.isArray(
-                                                                packingStyle
-                                                            )}
-                                                        >
-                                                            <For
-                                                                each={
-                                                                    packingStyle as ItemPackingStyle[]
-                                                                }
-                                                            >
-                                                                {(
-                                                                    packingStyle
-                                                                ) => {
-                                                                    return (
+                                                <Show
+                                                    when={
+                                                        Object.keys(
+                                                            groupItemVariantsByPackingStyleHash(
+                                                                item.item_variants ??
+                                                                    []
+                                                            )
+                                                        ).length > 0
+                                                    }
+                                                >
+                                                    <For
+                                                        each={Object.entries(
+                                                            groupItemVariantsByPackingStyleHash(
+                                                                item.item_variants ??
+                                                                    []
+                                                            )
+                                                        )}
+                                                    >
+                                                        {([
+                                                            packingStyleHash,
+                                                            itemVariants,
+                                                        ]) => {
+                                                            return (
+                                                                <div class="flex flex-col gap-1 text-sm">
+                                                                    <div class="flex flex-col items-end gap-1">
                                                                         <p>
                                                                             {
                                                                                 "📦"
                                                                             }{" "}
                                                                             {
-                                                                                packingStyle.packing_width
-                                                                            }
-                                                                            x
-                                                                            {
-                                                                                packingStyle.packing_height
-                                                                            }
-                                                                            x
-                                                                            {
-                                                                                packingStyle.packing_length
-                                                                            }{" "}
-                                                                            {
-                                                                                packingStyle.length_unit_code
-                                                                            }{" "}
-                                                                            {
-                                                                                packingStyle.packing_weight
-                                                                            }{" "}
-                                                                            {
-                                                                                packingStyle.weight_unit_code
-                                                                            }{" "}
-                                                                            {
-                                                                                packingStyle.factor_by_base_unit
-                                                                            }{" "}
-                                                                            {
-                                                                                item.base_unit_code
+                                                                                packingStyleHash
                                                                             }
                                                                         </p>
-                                                                    );
-                                                                }}
-                                                            </For>
-                                                        </Show>
-                                                        <Show
-                                                            when={
-                                                                packingStyle &&
-                                                                typeof packingStyle ===
-                                                                    "object"
-                                                            }
-                                                        >
-                                                            <p>
-                                                                {"📦"}{" "}
-                                                                {
-                                                                    (
-                                                                        packingStyle as ItemPackingStyle
-                                                                    )
-                                                                        ?.packing_width
-                                                                }{" "}
-                                                                x{" "}
-                                                                {
-                                                                    (
-                                                                        packingStyle as ItemPackingStyle
-                                                                    )
-                                                                        ?.packing_height
-                                                                }{" "}
-                                                                x{" "}
-                                                                {
-                                                                    (
-                                                                        packingStyle as ItemPackingStyle
-                                                                    )
-                                                                        ?.packing_length
-                                                                }{" "}
-                                                                {
-                                                                    (
-                                                                        packingStyle as ItemPackingStyle
-                                                                    )
-                                                                        ?.length_unit_code
-                                                                }{" "}
-                                                                {
-                                                                    (
-                                                                        packingStyle as ItemPackingStyle
-                                                                    )
-                                                                        ?.packing_weight
-                                                                }{" "}
-                                                                {
-                                                                    (
-                                                                        packingStyle as ItemPackingStyle
-                                                                    )
-                                                                        ?.weight_unit_code
-                                                                }{" "}
-                                                                {
-                                                                    (
-                                                                        packingStyle as ItemPackingStyle
-                                                                    )
-                                                                        ?.factor_by_base_unit
-                                                                }{" "}
-                                                                {
-                                                                    item.base_unit_code
-                                                                }{" "}
-                                                            </p>
-                                                        </Show>
-                                                    </div>
-                                                    <For
-                                                        each={
-                                                            item.item_platforms
-                                                        }
-                                                    >
-                                                        {(itemPlatform) => {
-                                                            const shop =
-                                                                iaIdToShopMap()?.get(
-                                                                    itemPlatform.integration_account_id
-                                                                );
-                                                            return (
-                                                                <div class="flex flex-row items-center justify-start gap-2 text-sm">
-                                                                    <ShopeeLogo />
-                                                                    <p class="text-center align-baseline text-sm">
-                                                                        {" "}
-                                                                        {
-                                                                            nationalFlags[
-                                                                                shop?.region as keyof typeof nationalFlags
-                                                                            ]
-                                                                        }{" "}
-                                                                        {truncateText(
-                                                                            itemPlatform
-                                                                                .shopee_item
-                                                                                ?.item_name ??
-                                                                                ""
-                                                                        )}
-                                                                    </p>
+                                                                    </div>
+                                                                    <For
+                                                                        each={
+                                                                            itemVariants
+                                                                        }
+                                                                    >
+                                                                        {(
+                                                                            itemVariant
+                                                                        ) => {
+                                                                            const shop =
+                                                                                iaIdToShopMap()?.get(
+                                                                                    itemVariant.integration_account_id
+                                                                                );
+                                                                            return (
+                                                                                <div class="flex flex-row items-center justify-start gap-2 text-sm">
+                                                                                    <p class="w-[24px]">
+                                                                                        <ShopeeLogo />
+                                                                                    </p>
+                                                                                    <div class="flex w-[calc(100%-24px)] flex-row items-center justify-start gap-1">
+                                                                                        <p class="w-1/3 text-nowrap text-center align-middle text-sm">
+                                                                                            {" "}
+                                                                                            {
+                                                                                                nationalFlags[
+                                                                                                    shop?.region as keyof typeof nationalFlags
+                                                                                                ]
+                                                                                            }{" "}
+                                                                                            {truncateText(
+                                                                                                shop?.shop_name ??
+                                                                                                    "unknown shop"
+                                                                                            )}
+                                                                                        </p>
+                                                                                        <p class="w-1/3 text-nowrap text-center align-middle text-sm">
+                                                                                            {truncateText(
+                                                                                                resolveItemSku(
+                                                                                                    itemVariant
+                                                                                                )
+                                                                                                    ?.hash_code ??
+                                                                                                    "unknown sku",
+                                                                                                10
+                                                                                            )}
+                                                                                        </p>
+                                                                                        <p class="w-1/3 text-nowrap text-center align-middle text-sm">
+                                                                                            {itemVariant
+                                                                                                .sellable_inventory
+                                                                                                ?.on_hand ??
+                                                                                                "N/A"}{" "}
+                                                                                            {itemVariant
+                                                                                                .sellable_inventory
+                                                                                                ?.unit_code ??
+                                                                                                ""}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        }}
+                                                                    </For>
                                                                 </div>
                                                             );
                                                         }}
                                                     </For>
-                                                </div>
+                                                </Show>
                                             </CardContent>
                                         </Card>
                                     </>
@@ -1062,14 +1033,20 @@ export default function Account() {
                     throw new Error("Invalid onhand stock number");
                 }
                 const { success, error } = await setVariantStock(
-                    selectedTopItemVariant()?.item_variant.id as number,
+                    selectedTopItemVariant()?.id as number,
                     editingOnhandStockNumber() as number
                 );
                 if (success) {
-                    const targetItemVariant = topItemVariantOptions()?.find(variant => variant.item_variant.id === selectedTopItemVariant()?.item_variant.id);
+                    const targetItemVariant =
+                        selectedTopItem()?.item_variants?.find(
+                            (variant) =>
+                                variant.id === selectedTopItemVariantID()
+                        );
                     if (targetItemVariant) {
-                        targetItemVariant.item_variant.sellable_inventory.on_hand = editingOnhandStockNumber() as number;
-                        setSelectedTopItem({...selectedTopItem() as Item});
+                        targetItemVariant.sellable_inventory.on_hand =
+                            editingOnhandStockNumber() as number;
+                        setSelectedTopItem({ ...(selectedTopItem() as Item) });
+                        setSelectedTopItemSku({...(selectedTopItemSku() as ItemSku)});
                     }
 
                     showToast({
@@ -1093,29 +1070,29 @@ export default function Account() {
             try {
                 console.log(selectedTopItemVariant());
                 setEditingOnhandStockNumber(
-                    selectedTopItemVariant()?.item_variant.sellable_inventory
-                        ?.on_hand ?? null
+                    selectedTopItemVariant()?.sellable_inventory?.on_hand ??
+                        null
                 );
                 // reload original selected top item sku
                 const [itemId, modelId] =
-                    selectedTopItemVariant()?.item_variant.platform_item_variant_id?.split(
+                    selectedTopItemVariant()?.platform_item_variant_id?.split(
                         "|"
                     ) ?? [];
-                
+
                 if (
                     !itemId ||
                     !modelId ||
-                    !selectedTopItemVariant()?.item_variant
-                        ?.integration_account_id
+                    !selectedTopItemVariant()?.integration_account_id
                 ) {
-                    console.warn("item id or model id or integration account id is not found");
+                    console.warn(
+                        "item id or model id or integration account id is not found"
+                    );
                     return;
                 }
                 const internalSkuCode =
                     modelId === "0" ? `:${itemId}` : modelId;
                 const { success, data, error } = await getItemSku(
-                    selectedTopItemVariant()?.item_variant
-                        ?.integration_account_id as number,
+                    selectedTopItemVariant()?.integration_account_id as number,
                     internalSkuCode as string
                 );
                 if (success && data) {
@@ -1159,11 +1136,11 @@ export default function Account() {
                                         </p>
                                         <p>
                                             sku code:
-                                            {selectedTopItemVariant()?.item_variant.platform_item_variant_id.split(
+                                            {selectedTopItemVariant()?.platform_item_variant_id.split(
                                                 ":"
                                             )[1] === "0"
                                                 ? "SKUなしアイテム"
-                                                : selectedTopItemVariant()?.item_variant.platform_item_variant_id.split(
+                                                : selectedTopItemVariant()?.platform_item_variant_id.split(
                                                       ":"
                                                   )[1]}
                                         </p>
@@ -1204,8 +1181,7 @@ export default function Account() {
                                     <div class="text-[0.70rem] uppercase text-muted-foreground">
                                         {
                                             selectedTopItemVariant()
-                                                ?.item_variant
-                                                .sellable_inventory?.unit_code
+                                                ?.sellable_inventory?.unit_code
                                         }
                                     </div>
                                 </div>
