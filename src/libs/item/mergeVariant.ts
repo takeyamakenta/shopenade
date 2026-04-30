@@ -1,8 +1,13 @@
 import { getAuthSession } from "@/sessions/authSession";
+import { Item } from "@/@types/Item";
 
 export interface MergeVariantResponse {
     success: boolean;
     error?: string;
+    data?: {
+        merged_item: Item;
+        spliced_item: Item;
+    };
 }
 
 export const doMergeVariant = async (toItemID: number, toItemPackingStyleID: number, toItemSkuID: number, fromItemVariantIDs: number[]): Promise<MergeVariantResponse> => {
@@ -28,9 +33,18 @@ export const doMergeVariant = async (toItemID: number, toItemPackingStyleID: num
         }
     );
     if (response.ok) {
+        const responseData = (await response.json()) as {
+            success: boolean;
+            data: {
+                merged_item: Item;
+                spliced_item: Item;
+            };
+        };
+        console.log({ responseData });
         return {
             success: response.ok,
-        };
+            data: responseData.data,
+        } as MergeVariantResponse;
     } else {
         return {
             success: false,

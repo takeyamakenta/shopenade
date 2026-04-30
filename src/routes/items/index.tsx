@@ -14,6 +14,7 @@ import {
     createSignal,
     onMount,
     splitProps,
+    Accessor,
 } from "solid-js";
 
 import { createAsync, query } from "@solidjs/router";
@@ -68,6 +69,7 @@ import { truncateText } from "@/libs/text/truncateText";
 import { showToast } from "@/components/ui/toast";
 import { serializeError } from "@/libs/error/reportError";
 import { ItemVariant } from "@/@types/ItemVariant";
+import { ItemPlatform } from "@/@types/ItemPlatform";
 
 const initData = query(async () => {
     "use server";
@@ -389,7 +391,7 @@ export default function Account() {
             ) {
                 throw new Error("選択中のアイテムが存在しません");
             }
-            const { success, error } = await mergeVariant(
+            const { success, error, data } = await mergeVariant(
                 selectedTopItem()?.id as number,
                 selectedTopItemPackingStyle()?.id as number,
                 selectedTopItemSku()?.id as number,
@@ -401,6 +403,25 @@ export default function Account() {
                     description: "アイテムをマージしました",
                     variant: "success",
                 });
+
+                if (data) {
+                    const mergedItem = data.merged_item;
+                    const splicedItem = data.spliced_item;
+                    // アイテム一覧を更新
+                    const itemsCopy = [...items()];
+                    const mergedItemIndex = itemsCopy.findIndex(item => item.id === mergedItem.id);
+                    if (mergedItemIndex !== -1) {
+                        itemsCopy[mergedItemIndex] = mergedItem;
+                    }
+                    const splicedItemIndex = itemsCopy.findIndex(item => item.id === splicedItem.id);
+                    if (splicedItemIndex !== -1) {
+                        itemsCopy[splicedItemIndex] = splicedItem;
+                    }
+                    setItems(itemsCopy);
+                    setSelectedTopItem(mergedItem);
+                    setSelectedBottomItem(splicedItem);
+                }
+
                 return;
             } else {
                 throw new Error(error ?? "Failed to merge variant");
