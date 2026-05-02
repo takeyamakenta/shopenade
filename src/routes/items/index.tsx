@@ -4,6 +4,7 @@ import {
     MinusIcon,
     PlusIcon,
 } from "lucide-solid";
+import { Motion, Presence } from "solid-motionone";
 import {
     ComponentProps,
     For,
@@ -144,16 +145,10 @@ export default function Account() {
     // 選択中アイテムから「default」を除外した SKU 候補（複数 SKU 時のみフィルタ）
     const topItemSkuOptions = createMemo(() => {
         const skus = selectedTopItem()?.item_skus;
-        console.log({ skus });
         if (!skus) return undefined;
         return skus.length > 1
             ? skus.filter((sku) => sku.hash_code !== "default")
             : skus;
-    });
-
-    // 選択中 SKU に紐づく梱包スタイルの候補
-    const topPackingStyleOptions = createMemo(() => {
-        return selectedTopItem()?.item_packing_styles;
     });
 
     const resolveItemPlatform = (itemVariant: ItemVariant) => {
@@ -190,25 +185,6 @@ export default function Account() {
         );
     };
 
-    const topItemVariantOptions = createMemo(() => {
-        const sku = selectedTopItemSku();
-        if (!sku) return undefined;
-        const packingStyle = selectedTopItemPackingStyle();
-        if (!packingStyle) return undefined;
-        return selectedTopItem()
-            ?.item_variants?.filter(
-                (variant) =>
-                    variant.item_packing_style_id === packingStyle.id &&
-                    variant.item_sku_id === sku.id
-            )
-            .map((variant) => ({
-                item_platform: resolveItemPlatform(variant),
-                item_packing_style: resolveItemPackingStyle(variant),
-                item_sku: resolveItemSku(variant),
-                item_variant: variant,
-            }));
-    });
-
     const hashPackingStyle = (packingStyle: ItemPackingStyle) => {
         return `${packingStyle.packing_width}x${packingStyle.packing_height}x${packingStyle.packing_length} ${packingStyle.length_unit_code} ${packingStyle.packing_weight} ${packingStyle.weight_unit_code} ${packingStyle.factor_by_base_unit} ${packingStyle.unit_code}`;
     };
@@ -236,29 +212,48 @@ export default function Account() {
         );
     });
 
-    const bottomGroupedItemVariants = createMemo(() => {
-        return groupItemVariantsByPackingStyleHash(
-            selectedBottomItem()?.item_variants ?? []
+    const topPackingStyleHashOptions = createMemo(() => {
+        const nonVariantPackingStyleHashes = (
+            selectedTopItem()?.item_packing_styles?.map((packingStyle) =>
+                hashPackingStyle(packingStyle)
+            ) ?? []
+        ).filter(
+            (hash) => !Object.keys(topGroupedItemVariants()).includes(hash)
         );
+        return [
+            ...Object.keys(topGroupedItemVariants()),
+            ...nonVariantPackingStyleHashes,
+        ];
     });
 
     const onSelectTopItemSku = (api: NonNullable<ReturnType<CarouselApi>>) => {
         const selectedItemSku = topItemSkuOptions()?.[api.selectedScrollSnap()];
         setSelectedTopItemSku(selectedItemSku ?? null);
-        setSelectedTopItemPackingStyle(topPackingStyleOptions()?.[0] ?? null);
+        const packingStyleHash =
+            topPackingStyleHashOptions()?.[api.selectedScrollSnap()];
+        if (!packingStyleHash) return;
+        const selectedItemPackingStyle =
+            selectedTopItem()?.item_packing_styles?.find(
+                (packingStyle) =>
+                    hashPackingStyle(packingStyle) === packingStyleHash
+            );
+        setSelectedTopItemPackingStyle(selectedItemPackingStyle ?? null);
     };
 
     const onSelectTopItemPackingStyle = (
         api: NonNullable<ReturnType<CarouselApi>>
     ) => {
-        console.log({ selectedScrollSnap: api.selectedScrollSnap() });
-        const itemPackingStyleHash = Object.keys(
-            topGroupedItemVariants()
-        )[api.selectedScrollSnap()];
-        const selectedItemPackingStyle = topPackingStyleOptions()?.find(
-            (packingStyle) =>
-                hashPackingStyle(packingStyle) === itemPackingStyleHash
-        );
+        const itemPackingStyleHash =
+            topPackingStyleHashOptions()?.[api.selectedScrollSnap()];
+        if (!itemPackingStyleHash) {
+            console.warn("No packing style hash found");
+            return;
+        }
+        const selectedItemPackingStyle =
+            selectedTopItem()?.item_packing_styles?.find(
+                (packingStyle) =>
+                    hashPackingStyle(packingStyle) === itemPackingStyleHash
+            );
         setSelectedTopItemPackingStyle(selectedItemPackingStyle ?? null);
     };
 
@@ -289,25 +284,14 @@ export default function Account() {
             : skus;
     });
 
-    // 選択中 SKU に紐づく ItemVariant 一覧
-    const bottomAvailableVariants = createMemo(() => {
-        const sku = selectedBottomItemSku();
-        if (!sku) return undefined;
-        return selectedBottomItem()?.item_variants?.filter(
-            (variant) => variant.item_sku_id === sku.id
+    const bottomGroupedItemVariants = createMemo(() => {
+        return groupItemVariantsByPackingStyleHash(
+            selectedBottomItem()?.item_variants ?? []
         );
     });
 
-    // 選択中 SKU に紐づく梱包スタイルの候補
-    const bottomPackingStyleOptions = createMemo(() => {
-        const variants = bottomAvailableVariants();
-        if (!variants) return undefined;
-        const packingStyleIds = variants.map(
-            (variant) => variant.item_packing_style_id
-        );
-        return selectedBottomItem()?.item_packing_styles?.filter(
-            (packingStyle) => packingStyleIds.includes(packingStyle.id)
-        );
+    const bottomPackingStyleHashOptions = createMemo(() => {
+        return Object.keys(bottomGroupedItemVariants());
     });
 
     const onSelectBottomItemSku = (
@@ -316,21 +300,31 @@ export default function Account() {
         const selectedItemSku =
             bottomItemSkuOptions()?.[api.selectedScrollSnap()];
         setSelectedBottomItemSku(selectedItemSku ?? null);
-        const itemPackingStyleHash = Object.keys(
-            bottomGroupedItemVariants()
-        )[api.selectedScrollSnap()];
-        const selectedItemPackingStyle = bottomPackingStyleOptions()?.find(
-            (packingStyle) =>
-                hashPackingStyle(packingStyle) === itemPackingStyleHash
-        );
+        const packingStyleHash =
+            bottomPackingStyleHashOptions()?.[api.selectedScrollSnap()];
+        if (!packingStyleHash) return;
+        const selectedItemPackingStyle =
+            selectedBottomItem()?.item_packing_styles?.find(
+                (packingStyle) =>
+                    hashPackingStyle(packingStyle) === packingStyleHash
+            );
         setSelectedBottomItemPackingStyle(selectedItemPackingStyle ?? null);
     };
 
     const onSelectBottomItemPackingStyle = (
         api: NonNullable<ReturnType<CarouselApi>>
     ) => {
+        const itemPackingStyleHash =
+            bottomPackingStyleHashOptions()?.[api.selectedScrollSnap()];
+        if (!itemPackingStyleHash) {
+            console.warn("No packing style hash found");
+            return;
+        }
         const selectedItemPackingStyle =
-            bottomPackingStyleOptions()?.[api.selectedScrollSnap()];
+            selectedBottomItem()?.item_packing_styles?.find(
+                (packingStyle) =>
+                    hashPackingStyle(packingStyle) === itemPackingStyleHash
+            );
         setSelectedBottomItemPackingStyle(selectedItemPackingStyle ?? null);
     };
 
@@ -488,13 +482,40 @@ export default function Account() {
                                         >
                                             <CarouselContent class="h-[48px] w-full">
                                                 <For each={topItemSkuOptions()}>
-                                                    {(sku) => (
-                                                        <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
-                                                            <p class="text-md">
-                                                                {sku.hash_code}
-                                                            </p>
-                                                        </CarouselItem>
-                                                    )}
+                                                    {(sku) => {
+                                                        const isNonVariantSku =
+                                                            ! selectedTopItem()?.item_variants?.some(variant => variant.item_sku_id === sku.id);
+                                                        return (
+                                                            <>
+                                                                <Show
+                                                                    when={
+                                                                        isNonVariantSku
+                                                                    }
+                                                                >
+                                                                    <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center text-gray-500">
+                                                                        <p>
+                                                                            {
+                                                                                sku.hash_code
+                                                                            }
+                                                                        </p>
+                                                                    </CarouselItem>
+                                                                </Show>
+                                                                <Show
+                                                                    when={
+                                                                        !isNonVariantSku
+                                                                    }
+                                                                >
+                                                                    <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
+                                                                        <p class="text-md">
+                                                                            {
+                                                                                sku.hash_code
+                                                                            }
+                                                                        </p>
+                                                                    </CarouselItem>
+                                                                </Show>
+                                                            </>
+                                                        );
+                                                    }}
                                                 </For>
                                             </CarouselContent>
                                             <Show
@@ -520,28 +541,59 @@ export default function Account() {
                                         >
                                             <CarouselContent class="h-[48px] w-full">
                                                 <For
-                                                    each={Object.keys(
-                                                        topGroupedItemVariants()
-                                                    )}
+                                                    each={topPackingStyleHashOptions()}
                                                 >
-                                                    {(packingStyleHash) => (
-                                                        <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
-                                                            <p>
-                                                                {"📦"}{" "}
-                                                                {
-                                                                    packingStyleHash
-                                                                }
-                                                            </p>
-                                                        </CarouselItem>
-                                                    )}
+                                                    {(packingStyleHash) => {
+                                                        const isNonVariantPackingStyle =
+                                                            !Object.keys(
+                                                                topGroupedItemVariants()
+                                                            ).includes(
+                                                                packingStyleHash
+                                                            );
+                                                        return (
+                                                            <>
+                                                                <Show
+                                                                    when={
+                                                                        isNonVariantPackingStyle
+                                                                    }
+                                                                >
+                                                                    <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center text-gray-500">
+                                                                        <p>
+                                                                            {
+                                                                                "📦"
+                                                                            }{" "}
+                                                                            {
+                                                                                packingStyleHash
+                                                                            }
+                                                                        </p>
+                                                                    </CarouselItem>
+                                                                </Show>
+                                                                <Show
+                                                                    when={
+                                                                        !isNonVariantPackingStyle
+                                                                    }
+                                                                >
+                                                                    <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
+                                                                        <p>
+                                                                            {
+                                                                                "📦"
+                                                                            }{" "}
+                                                                            {
+                                                                                packingStyleHash
+                                                                            }
+                                                                        </p>
+                                                                    </CarouselItem>
+                                                                </Show>
+                                                            </>
+                                                        );
+                                                    }}
                                                 </For>
                                             </CarouselContent>
                                         </Carousel>
                                         <Show
                                             when={
-                                                (Object.keys(
-                                                    topGroupedItemVariants()
-                                                )?.length ?? 0) > 1
+                                                (topPackingStyleHashOptions()
+                                                    ?.length ?? 0) > 1
                                             }
                                         >
                                             <p class="absolute right-0 top-[8px]">
@@ -838,16 +890,26 @@ export default function Account() {
         if (!isTopPanelOpen()) {
             setSelectedTopItem(item);
             setSelectedTopItemSku(topItemSkuOptions()?.[0] ?? null);
-            setSelectedTopItemPackingStyle(
-                topPackingStyleOptions()?.[0] ?? null
-            );
+            const packingStyleHash = topPackingStyleHashOptions()?.[0];
+            if (!packingStyleHash) return;
+            const selectedItemPackingStyle =
+                selectedTopItem()?.item_packing_styles?.find(
+                    (packingStyle) =>
+                        hashPackingStyle(packingStyle) === packingStyleHash
+                );
+            setSelectedTopItemPackingStyle(selectedItemPackingStyle ?? null);
             setIsTopPanelOpen(true);
         } else if (!isBottomPanelOpen()) {
             setSelectedBottomItem(item);
             setSelectedBottomItemSku(bottomItemSkuOptions()?.[0] ?? null);
-            setSelectedBottomItemPackingStyle(
-                bottomPackingStyleOptions()?.[0] ?? null
-            );
+            const packingStyleHash = bottomPackingStyleHashOptions()?.[0];
+            if (!packingStyleHash) return;
+            const selectedItemPackingStyle =
+                selectedBottomItem()?.item_packing_styles?.find(
+                    (packingStyle) =>
+                        hashPackingStyle(packingStyle) === packingStyleHash
+                );
+            setSelectedBottomItemPackingStyle(selectedItemPackingStyle ?? null);
             setIsBottomPanelOpen(true);
         }
     };
@@ -856,12 +918,29 @@ export default function Account() {
         return (
             <div class="relative h-full w-full overflow-hidden">
                 <section
-                    class="flex max-h-[calc(100vh-7.2rem)] flex-col items-center overflow-y-auto px-4 py-4"
+                    class="flex max-h-[calc(100vh-7.2rem)] h-full flex-col items-center overflow-y-auto px-4 py-4"
                     ref={(el) => (portalMount = el)}
                 >
-                    <div class="mb-8 flex h-fit w-full max-w-md flex-col gap-4">
+                    <div class="mb-8 flex h-full w-full max-w-md flex-col gap-4">
+                        {/* 上部パネルが開いている時、要素が隠れてクリックできないようにしないためのダミー要素 */}
+                        {/* Presence + Motion で出現/消失をシームレスにトランジションする */}
+                        <Presence>
+                            <Show when={isTopPanelOpen()}>
+                                <Motion.div
+                                    class="w-full overflow-hidden"
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "45%", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{
+                                        duration: 0.3,
+                                        easing: "ease-out",
+                                    }}
+                                />
+                            </Show>
+                        </Presence>
                         <For each={items()}>
                             {(item) => {
+                                const isNonVariantItem = !item.item_variants?.length;
                                 return (
                                     <>
                                         <Card
@@ -870,7 +949,7 @@ export default function Account() {
                                             }}
                                         >
                                             <CardHeader>
-                                                <CardTitle>
+                                                <CardTitle class={isNonVariantItem ? "text-gray-500" : ""}>
                                                     {item.item_platforms?.[0]
                                                         ?.shopee_item
                                                         ?.item_name ??
@@ -1045,8 +1124,14 @@ export default function Account() {
                     if (targetItemVariant) {
                         targetItemVariant.sellable_inventory.on_hand =
                             editingOnhandStockNumber() as number;
-                        setSelectedTopItem({ ...(selectedTopItem() as Item) });
-                        setSelectedTopItemSku({...(selectedTopItemSku() as ItemSku)});
+                        const item = items()?.find(
+                            (item) => item.id === targetItemVariant?.item_id
+                        );
+                        if (item) {
+                            setSelectedTopItem(null);
+                            setSelectedTopItem({ ...item });
+                            setItems([...items()]);
+                        }
                     }
 
                     showToast({
