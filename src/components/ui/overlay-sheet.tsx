@@ -41,7 +41,6 @@ type OverlaySheetProps = {
     defaultOpen?: boolean;
     defaultTopOpen?: boolean;
     defaultBottomOpen?: boolean;
-    onOpenChange?: (open: boolean) => void;
     onTopOpenChange?: (open: boolean) => void;
     onBottomOpenChange?: (open: boolean) => void;
     children?: JSX.Element;
@@ -134,12 +133,12 @@ const overlaySheetWrapperVariants = cva(
     }
 );
 
-const overlaySheetFillerVariants = cva(
+const overlaySheetCenterFillerVariants = cva(
     "",
     {
         variants: {
             openState: {
-                open: "opacity-100",
+                open: "pointer-events-auto opacity-100",
                 "top-open": "opacity-100",
                 "bottom-open": "opacity-100",
                 closed: "opacity-0",
@@ -228,7 +227,7 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
             <div
                 data-state={state()}
                 class={cn(
-                    overlaySheetFillerVariants({ openState: state() }),
+                    overlaySheetCenterFillerVariants({ openState: state() }),
                     "w-full h-full inline-flex justify-center items-center",
                     "h-1/5 min-h-[64px]"
                 )}

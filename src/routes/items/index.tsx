@@ -4,7 +4,6 @@ import {
     MinusIcon,
     PlusIcon,
 } from "lucide-solid";
-import { Motion, Presence } from "solid-motionone";
 import {
     ComponentProps,
     For,
@@ -16,6 +15,7 @@ import {
     onMount,
     splitProps,
 } from "solid-js";
+import { Motion, Presence } from "solid-motionone";
 
 import { createAsync, query } from "@solidjs/router";
 
@@ -57,6 +57,12 @@ import {
     OverlaySheetTitle,
     OverlaySheetTopClose,
 } from "@/components/ui/overlay-sheet";
+import {
+    Switch,
+    SwitchControl,
+    SwitchLabel,
+    SwitchThumb,
+} from "@/components/ui/switch";
 import { showToast } from "@/components/ui/toast";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import NavFooter from "@/layouts/NavFooter";
@@ -114,6 +120,10 @@ export default function Account() {
     };
 
     const closeTopPanel = () => {
+        setSelectedTopItem(null);
+        setSelectedTopItemPackingStyle(null);
+        setSelectedTopItemSku(null);
+        setSelectedTopItemVariantID(null);
         setIsTopPanelOpen(false);
     };
     const toggleBottomPanel = () => {
@@ -122,6 +132,29 @@ export default function Account() {
 
     const closeBottomPanel = () => {
         setIsBottomPanelOpen(false);
+    };
+
+    const clearSelectedTopItem = () => {
+        setSelectedTopItem(null);
+        setSelectedTopItemPackingStyle(null);
+        setSelectedTopItemSku(null);
+        setSelectedTopItemVariantID(null);
+    };
+    const onTopOpenChange = (open: boolean) => {
+        if (!open) {
+            clearSelectedTopItem();
+        }
+    };
+    const clearSelectedBottomItem = () => {
+        setSelectedBottomItem(null);
+        setSelectedBottomItemPackingStyle(null);
+        setSelectedBottomItemSku(null);
+        setSelectedBottomItemVariantIDs([]);
+    };
+    const onBottomOpenChange = (open: boolean) => {
+        if (!open) {
+            clearSelectedBottomItem();
+        }
     };
 
     const [selectedTopItem, setSelectedTopItem] = createSignal<Item | null>(
@@ -433,6 +466,11 @@ export default function Account() {
     const [originalSelectedTopItemSku, setOriginalSelectedTopItemSku] =
         createSignal<ItemSku | null>(null);
 
+    const [showNonVariantItems, setShowNonVariantItems] = createSignal(false);
+    const toggleShowNonVariantItems = () => {
+        setShowNonVariantItems(!showNonVariantItems());
+    };
+
     const ItemSkuImageCarousel = (
         props: ComponentProps<"div"> & { itemSku: ItemSku | null }
     ) => {
@@ -484,7 +522,11 @@ export default function Account() {
                                                 <For each={topItemSkuOptions()}>
                                                     {(sku) => {
                                                         const isNonVariantSku =
-                                                            ! selectedTopItem()?.item_variants?.some(variant => variant.item_sku_id === sku.id);
+                                                            !selectedTopItem()?.item_variants?.some(
+                                                                (variant) =>
+                                                                    variant.item_sku_id ===
+                                                                    sku.id
+                                                            );
                                                         return (
                                                             <>
                                                                 <Show
@@ -702,7 +744,9 @@ export default function Account() {
                         </Show>
                     </div>
                 </OverlaySheetBody>
-                <OverlaySheetTopClose>Close</OverlaySheetTopClose>
+                <OverlaySheetTopClose onClick={closeTopPanel}>
+                    Close
+                </OverlaySheetTopClose>
             </>
         );
     };
@@ -881,7 +925,9 @@ export default function Account() {
                         </Show>
                     </div>
                 </OverlaySheetBody>
-                <OverlaySheetBottomClose>Close</OverlaySheetBottomClose>
+                <OverlaySheetBottomClose onClick={closeBottomPanel}>
+                    Close
+                </OverlaySheetBottomClose>
             </>
         );
     };
@@ -903,7 +949,10 @@ export default function Account() {
             setSelectedBottomItem(item);
             setSelectedBottomItemSku(bottomItemSkuOptions()?.[0] ?? null);
             const packingStyleHash = bottomPackingStyleHashOptions()?.[0];
-            if (!packingStyleHash) return;
+            if (!packingStyleHash) {
+                setIsBottomPanelOpen(true);
+                return;
+            };
             const selectedItemPackingStyle =
                 selectedBottomItem()?.item_packing_styles?.find(
                     (packingStyle) =>
@@ -918,9 +967,25 @@ export default function Account() {
         return (
             <div class="relative h-full w-full overflow-hidden">
                 <section
-                    class="flex max-h-[calc(100vh-7.2rem)] h-full flex-col items-center overflow-y-auto px-4 py-4"
+                    class="flex h-full max-h-[calc(100vh-7.2rem)] flex-col items-center overflow-y-auto px-4 py-4"
                     ref={(el) => (portalMount = el)}
                 >
+                    <div class="flex h-fit w-full flex-row items-center justify-start px-1 py-2">
+                        <Switch
+                            checked={showNonVariantItems()}
+                            onChange={toggleShowNonVariantItems}
+                            class="flex items-center space-x-2"
+                        >
+                            <SwitchControl>
+                                <SwitchThumb />
+                            </SwitchControl>
+                            <SwitchLabel>
+                                {showNonVariantItems()
+                                    ? "店舗アイテムがないアイテムを表示"
+                                    : "店舗アイテムがないアイテムを表示しない"}
+                            </SwitchLabel>
+                        </Switch>
+                    </div>
                     <div class="mb-8 flex h-full w-full max-w-md flex-col gap-4">
                         {/* 上部パネルが開いている時、要素が隠れてクリックできないようにしないためのダミー要素 */}
                         {/* Presence + Motion で出現/消失をシームレスにトランジションする */}
@@ -928,9 +993,21 @@ export default function Account() {
                             <Show when={isTopPanelOpen()}>
                                 <Motion.div
                                     class="w-full overflow-hidden"
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: "45%", opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
+                                    initial={{
+                                        height: 0,
+                                        minHeight: 0,
+                                        opacity: 0,
+                                    }}
+                                    animate={{
+                                        height: "40vh",
+                                        minHeight: "40vh",
+                                        opacity: 0,
+                                    }}
+                                    exit={{
+                                        height: 0,
+                                        minHeight: 0,
+                                        opacity: 0,
+                                    }}
                                     transition={{
                                         duration: 0.3,
                                         easing: "ease-out",
@@ -940,128 +1017,147 @@ export default function Account() {
                         </Presence>
                         <For each={items()}>
                             {(item) => {
-                                const isNonVariantItem = !item.item_variants?.length;
+                                const isNonVariantItem =
+                                    !item.item_variants?.length;
                                 return (
                                     <>
-                                        <Card
-                                            onClick={() => {
-                                                handleCardClick(item);
-                                            }}
+                                        <Show
+                                            when={
+                                                selectedTopItem()?.id !==
+                                                    item.id &&
+                                                selectedBottomItem()?.id !==
+                                                    item.id &&
+                                                (showNonVariantItems() ||
+                                                    !isNonVariantItem)
+                                            }
                                         >
-                                            <CardHeader>
-                                                <CardTitle class={isNonVariantItem ? "text-gray-500" : ""}>
-                                                    {item.item_platforms?.[0]
-                                                        ?.shopee_item
-                                                        ?.item_name ??
-                                                        item.id}{" "}
-                                                    {item.item_platforms
-                                                        ?.length &&
-                                                    item.item_platforms
-                                                        ?.length > 1
-                                                        ? "..."
-                                                        : ""}
-                                                </CardTitle>
-                                                <CardDescription>
-                                                    UID: {item.uid}
-                                                </CardDescription>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <Show
-                                                    when={
-                                                        Object.keys(
-                                                            groupItemVariantsByPackingStyleHash(
-                                                                item.item_variants ??
-                                                                    []
-                                                            )
-                                                        ).length > 0
-                                                    }
-                                                >
-                                                    <For
-                                                        each={Object.entries(
-                                                            groupItemVariantsByPackingStyleHash(
-                                                                item.item_variants ??
-                                                                    []
-                                                            )
-                                                        )}
+                                            <Card
+                                                onClick={() => {
+                                                    handleCardClick(item);
+                                                }}
+                                            >
+                                                <CardHeader>
+                                                    <CardTitle
+                                                        class={
+                                                            isNonVariantItem
+                                                                ? "text-gray-500"
+                                                                : ""
+                                                        }
                                                     >
-                                                        {([
-                                                            packingStyleHash,
-                                                            itemVariants,
-                                                        ]) => {
-                                                            return (
-                                                                <div class="flex flex-col gap-1 text-sm">
-                                                                    <div class="flex flex-col items-end gap-1">
-                                                                        <p>
-                                                                            {
-                                                                                "📦"
-                                                                            }{" "}
-                                                                            {
-                                                                                packingStyleHash
+                                                        {item
+                                                            .item_platforms?.[0]
+                                                            ?.shopee_item
+                                                            ?.item_name ??
+                                                            item.id}{" "}
+                                                        {item.item_platforms
+                                                            ?.length &&
+                                                        item.item_platforms
+                                                            ?.length > 1
+                                                            ? "..."
+                                                            : ""}
+                                                    </CardTitle>
+                                                    <CardDescription>
+                                                        UID: {item.uid}
+                                                    </CardDescription>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <Show
+                                                        when={
+                                                            Object.keys(
+                                                                groupItemVariantsByPackingStyleHash(
+                                                                    item.item_variants ??
+                                                                        []
+                                                                )
+                                                            ).length > 0
+                                                        }
+                                                    >
+                                                        <For
+                                                            each={Object.entries(
+                                                                groupItemVariantsByPackingStyleHash(
+                                                                    item.item_variants ??
+                                                                        []
+                                                                )
+                                                            )}
+                                                        >
+                                                            {([
+                                                                packingStyleHash,
+                                                                itemVariants,
+                                                            ]) => {
+                                                                return (
+                                                                    <div class="flex flex-col gap-1 text-sm">
+                                                                        <div class="flex flex-col items-end gap-1">
+                                                                            <p>
+                                                                                {
+                                                                                    "📦"
+                                                                                }{" "}
+                                                                                {
+                                                                                    packingStyleHash
+                                                                                }
+                                                                            </p>
+                                                                        </div>
+                                                                        <For
+                                                                            each={
+                                                                                itemVariants
                                                                             }
-                                                                        </p>
-                                                                    </div>
-                                                                    <For
-                                                                        each={
-                                                                            itemVariants
-                                                                        }
-                                                                    >
-                                                                        {(
-                                                                            itemVariant
-                                                                        ) => {
-                                                                            const shop =
-                                                                                iaIdToShopMap()?.get(
-                                                                                    itemVariant.integration_account_id
-                                                                                );
-                                                                            return (
-                                                                                <div class="flex flex-row items-center justify-start gap-2 text-sm">
-                                                                                    <p class="w-[24px]">
-                                                                                        <ShopeeLogo />
-                                                                                    </p>
-                                                                                    <div class="flex w-[calc(100%-24px)] flex-row items-center justify-start gap-1">
-                                                                                        <p class="w-1/3 text-nowrap text-center align-middle text-sm">
-                                                                                            {" "}
-                                                                                            {
-                                                                                                nationalFlags[
-                                                                                                    shop?.region as keyof typeof nationalFlags
-                                                                                                ]
-                                                                                            }{" "}
-                                                                                            {truncateText(
-                                                                                                shop?.shop_name ??
-                                                                                                    "unknown shop"
-                                                                                            )}
+                                                                        >
+                                                                            {(
+                                                                                itemVariant
+                                                                            ) => {
+                                                                                const shop =
+                                                                                    iaIdToShopMap()?.get(
+                                                                                        itemVariant.integration_account_id
+                                                                                    );
+                                                                                return (
+                                                                                    <div class="flex flex-row items-center justify-start gap-2 text-sm">
+                                                                                        <p class="w-[24px]">
+                                                                                            <ShopeeLogo />
                                                                                         </p>
-                                                                                        <p class="w-1/3 text-nowrap text-center align-middle text-sm">
-                                                                                            {truncateText(
-                                                                                                resolveItemSku(
-                                                                                                    itemVariant
-                                                                                                )
-                                                                                                    ?.hash_code ??
-                                                                                                    "unknown sku",
-                                                                                                10
-                                                                                            )}
-                                                                                        </p>
-                                                                                        <p class="w-1/3 text-nowrap text-center align-middle text-sm">
-                                                                                            {itemVariant
-                                                                                                .sellable_inventory
-                                                                                                ?.on_hand ??
-                                                                                                "N/A"}{" "}
-                                                                                            {itemVariant
-                                                                                                .sellable_inventory
-                                                                                                ?.unit_code ??
-                                                                                                ""}
-                                                                                        </p>
+                                                                                        <div class="flex w-[calc(100%-24px)] flex-row items-center justify-start gap-1">
+                                                                                            <p class="w-1/3 text-nowrap text-center align-middle text-sm">
+                                                                                                {" "}
+                                                                                                {
+                                                                                                    nationalFlags[
+                                                                                                        shop?.region as keyof typeof nationalFlags
+                                                                                                    ]
+                                                                                                }{" "}
+                                                                                                {truncateText(
+                                                                                                    shop?.shop_name ??
+                                                                                                        "unknown shop"
+                                                                                                )}
+                                                                                            </p>
+                                                                                            <p class="w-1/3 text-nowrap text-center align-middle text-sm">
+                                                                                                {truncateText(
+                                                                                                    resolveItemSku(
+                                                                                                        itemVariant
+                                                                                                    )
+                                                                                                        ?.hash_code ??
+                                                                                                        "unknown sku",
+                                                                                                    10
+                                                                                                )}
+                                                                                            </p>
+                                                                                            <p class="w-1/3 text-nowrap text-center align-middle text-sm">
+                                                                                                {itemVariant
+                                                                                                    .sellable_inventory
+                                                                                                    ?.on_hand ??
+                                                                                                    "N/A"}{" "}
+                                                                                                {itemVariant
+                                                                                                    .sellable_inventory
+                                                                                                    ?.unit_code ??
+                                                                                                    ""}
+                                                                                            </p>
+                                                                                        </div>
                                                                                     </div>
-                                                                                </div>
-                                                                            );
-                                                                        }}
-                                                                    </For>
-                                                                </div>
-                                                            );
-                                                        }}
-                                                    </For>
-                                                </Show>
-                                            </CardContent>
-                                        </Card>
+                                                                                );
+                                                                            }}
+                                                                        </For>
+                                                                    </div>
+                                                                );
+                                                            }}
+                                                        </For>
+                                                    </Show>
+                                                </CardContent>
+                                            </Card>
+                                        </Show>
                                     </>
                                 );
                             }}
@@ -1074,6 +1170,8 @@ export default function Account() {
                     bottomOpen={isBottomPanelOpen()}
                     setTopOpen={setIsTopPanelOpen}
                     setBottomOpen={setIsBottomPanelOpen}
+                    onTopOpenChange={onTopOpenChange}
+                    onBottomOpenChange={onBottomOpenChange}
                 >
                     <OverlaySheetContent
                         position="top"
