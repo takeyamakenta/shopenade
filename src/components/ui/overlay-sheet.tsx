@@ -5,13 +5,17 @@ import {
     type ComponentProps,
     type JSX,
     Setter,
+    Show,
     createContext,
     createMemo,
     createSignal,
     splitProps,
     useContext,
 } from "solid-js";
-import { Portal, Show } from "solid-js/web";
+
+import { Portal } from "solid-js/web";
+
+import { Button } from "@/components/ui/button";
 import { cn } from "@/libs/utils";
 
 type OverlaySheetContextValue = {
@@ -19,6 +23,9 @@ type OverlaySheetContextValue = {
     bottomOpen: Accessor<boolean>;
     setTopOpen: (v: boolean) => void;
     setBottomOpen: (v: boolean) => void;
+    topHeight: Accessor<string | undefined>;
+    bottomHeight: Accessor<string | undefined>;
+    centerHeight: Accessor<string | undefined>;
 };
 
 const OverlaySheetContext = createContext<OverlaySheetContextValue>();
@@ -43,6 +50,9 @@ type OverlaySheetProps = {
     defaultBottomOpen?: boolean;
     onTopOpenChange?: (open: boolean) => void;
     onBottomOpenChange?: (open: boolean) => void;
+    topHeight?: string;
+    centerHeight?: string;
+    bottomHeight?: string;
     children?: JSX.Element;
     portalMount?: Node;
 };
@@ -56,7 +66,9 @@ const OverlaySheet: Component<OverlaySheetProps> = (props) => {
     );
 
     const topOpen = createMemo(() => props.topOpen ?? internalTopOpen());
-    const bottomOpen = createMemo(() => props.bottomOpen ?? internalBottomOpen());
+    const bottomOpen = createMemo(
+        () => props.bottomOpen ?? internalBottomOpen()
+    );
     const setTopOpen = (v: boolean) => {
         if (props.topOpen === undefined) {
             setInternalTopOpen(v);
@@ -74,19 +86,42 @@ const OverlaySheet: Component<OverlaySheetProps> = (props) => {
         props.onBottomOpenChange?.(v);
     };
 
+    const topHeight = createMemo(() => props.topHeight ?? undefined);
+    const bottomHeight = createMemo(() => props.bottomHeight ?? undefined);
+    const centerHeight = createMemo(() => props.centerHeight ?? undefined);
     return (
         <>
             <Show when={props.portalMount}>
                 {(portalMount) => (
                     <Portal mount={portalMount()}>
-                        <OverlaySheetContext.Provider value={{ topOpen, bottomOpen, setTopOpen, setBottomOpen }}>
+                        <OverlaySheetContext.Provider
+                            value={{
+                                topOpen,
+                                bottomOpen,
+                                setTopOpen,
+                                setBottomOpen,
+                                topHeight,
+                                bottomHeight,
+                                centerHeight,
+                            }}
+                        >
                             {props.children}
                         </OverlaySheetContext.Provider>
                     </Portal>
                 )}
             </Show>
             <Show when={!props.portalMount}>
-                <OverlaySheetContext.Provider value={{ topOpen, bottomOpen, setTopOpen, setBottomOpen }}>
+                <OverlaySheetContext.Provider
+                    value={{
+                        topOpen,
+                        bottomOpen,
+                        setTopOpen,
+                        setBottomOpen,
+                        topHeight,
+                        bottomHeight,
+                        centerHeight,
+                    }}
+                >
                     {props.children}
                 </OverlaySheetContext.Provider>
             </Show>
@@ -103,10 +138,16 @@ const OverlaySheetTopClose: Component<ComponentProps<"button">> = (props) => {
         if (typeof local.onClick === "function") local.onClick(e);
         ctx.setTopOpen(false);
     };
-    return <button type="button" onClick={handleClick} {...others} />;
+    return (
+        <div class="flex h-[32px] w-full flex-row items-center justify-center">
+            <Button size="xs" onClick={handleClick} {...others} />
+        </div>
+    );
 };
 
-const OverlaySheetBottomClose: Component<ComponentProps<"button">> = (props) => {
+const OverlaySheetBottomClose: Component<ComponentProps<"button">> = (
+    props
+) => {
     const ctx = useOverlaySheet();
     const [local, others] = splitProps(props, ["onClick"]);
     const handleClick: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (
@@ -115,7 +156,11 @@ const OverlaySheetBottomClose: Component<ComponentProps<"button">> = (props) => 
         if (typeof local.onClick === "function") local.onClick(e);
         ctx.setBottomOpen(false);
     };
-    return <button type="button" onClick={handleClick} {...others} />;
+    return (
+        <div class="flex h-[32px] w-full flex-row items-center justify-center">
+            <Button size="xs" onClick={handleClick} {...others} />
+        </div>
+    );
 };
 
 const overlaySheetWrapperVariants = cva(
@@ -124,8 +169,10 @@ const overlaySheetWrapperVariants = cva(
         variants: {
             openState: {
                 open: "bg-background opacity-90 pointer-events-auto",
-                "top-open": "bg-gradient-to-t from-transparent to-background pointer-events-none",
-                "bottom-open": "bg-gradient-to-b from-transparent to-background pointer-events-none",
+                "top-open":
+                    "bg-gradient-to-t from-transparent to-background pointer-events-none",
+                "bottom-open":
+                    "bg-gradient-to-b from-transparent to-background pointer-events-none]",
                 closed: "bg-opacity-0 pointer-events-none",
             },
         },
@@ -133,36 +180,31 @@ const overlaySheetWrapperVariants = cva(
     }
 );
 
-const overlaySheetCenterFillerVariants = cva(
-    "",
-    {
-        variants: {
-            openState: {
-                open: "pointer-events-auto opacity-100",
-                "top-open": "opacity-100",
-                "bottom-open": "opacity-100",
-                closed: "opacity-0",
-            },
+const overlaySheetCenterFillerVariants = cva("", {
+    variants: {
+        openState: {
+            open: "pointer-events-auto opacity-100",
+            "top-open": "opacity-100",
+            "bottom-open": "opacity-100",
+            closed: "opacity-0",
         },
-        defaultVariants: { openState: "closed" },
-    }
-);
-
+    },
+    defaultVariants: { openState: "closed" },
+});
 
 const overlaySheetPanelVariants = cva(
-    "pointer-events-auto flex w-full flex-col overflow-y-auto bg-background shadow-lg transition-[transform,opacity] duration-300 ease-out data-[state=closed]:opacity-0",
+    "pointer-events-auto flex w-full h-fit flex-col overflow-y-auto bg-background shadow-lg transition-[transform,opacity] duration-300 ease-out data-[state=closed]:opacity-0",
     {
         variants: {
             position: {
-                bottom:
-                    "rounded-t-xl border-t data-[state=closed]:translate-y-full",
+                bottom: "rounded-t-xl border-t data-[state=closed]:translate-y-full",
                 top: "rounded-b-xl border-b data-[state=closed]:-translate-y-full",
             },
             size: {
-                sm: "max-h-[40%]",
-                md: "max-h-[60%]",
-                lg: "max-h-[80%]",
-                full: "max-h-full",
+                sm: "",
+                md: "",
+                lg: "",
+                full: "",
             },
         },
         defaultVariants: { position: "bottom", size: "md" },
@@ -200,13 +242,19 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
     const topState = () => (ctx.topOpen() ? "open" : "closed");
     const bottomState = () => (ctx.bottomOpen() ? "open" : "closed");
 
+    const isPanelHeightsDefined = createMemo(() => {
+        return (
+            ctx.topHeight() !== undefined &&
+            ctx.centerHeight() !== undefined &&
+            ctx.bottomHeight() !== undefined
+        );
+    });
+
     return (
         <div
             data-state={state()}
             aria-hidden={!(ctx.topOpen() || ctx.bottomOpen())}
-            class={cn(
-                overlaySheetWrapperVariants({ openState: state() }),
-            )}
+            class={cn(overlaySheetWrapperVariants({ openState: state() }))}
         >
             <div
                 data-state={topState()}
@@ -218,8 +266,13 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
                         size: local.size,
                     }),
                     local.class,
-                    "h-2/5"
+                    !isPanelHeightsDefined() ? "h-2/5" : ""
                 )}
+                style={
+                    isPanelHeightsDefined()
+                        ? { height: ctx.topHeight() }
+                        : undefined
+                }
                 {...others}
             >
                 {local.topChildren}
@@ -228,9 +281,14 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
                 data-state={state()}
                 class={cn(
                     overlaySheetCenterFillerVariants({ openState: state() }),
-                    "w-full h-full inline-flex justify-center items-center",
-                    "h-1/5 min-h-[64px]"
+                    "inline-flex h-full w-full items-center justify-center",
+                    !isPanelHeightsDefined() ? "h-1/5 min-h-[64px]" : ""
                 )}
+                style={
+                    isPanelHeightsDefined()
+                        ? { height: ctx.centerHeight() }
+                        : undefined
+                }
             >
                 {local.centerChildren}
             </div>
@@ -242,8 +300,13 @@ const OverlaySheetContent: Component<OverlaySheetContentProps> = (props) => {
                         size: local.size,
                     }),
                     local.class,
-                    "h-2/5"
+                    !isPanelHeightsDefined() ? "h-2/5" : ""
                 )}
+                style={
+                    isPanelHeightsDefined()
+                        ? { height: ctx.bottomHeight() }
+                        : undefined
+                }
                 {...others}
             >
                 {local.bottomChildren}
@@ -292,7 +355,10 @@ const OverlaySheetBody: Component<ComponentProps<"div">> = (props) => {
     const [local, others] = splitProps(props, ["class"]);
     return (
         <div
-            class={cn("flex-1 overflow-y-auto px-4 pb-4 pt-2", local.class)}
+            class={cn(
+                "h-fit flex-1 overflow-y-auto px-4 pb-4 pt-2",
+                local.class
+            )}
             {...others}
         />
     );
@@ -314,11 +380,11 @@ const OverlaySheetFooter: Component<ComponentProps<"div">> = (props) => {
 export {
     OverlaySheet,
     OverlaySheetBody,
-    OverlaySheetTopClose,
     OverlaySheetBottomClose,
     OverlaySheetContent,
     OverlaySheetDescription,
     OverlaySheetFooter,
     OverlaySheetHeader,
     OverlaySheetTitle,
+    OverlaySheetTopClose,
 };

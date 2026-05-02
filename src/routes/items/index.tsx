@@ -1,5 +1,7 @@
 import {
     ChevronsUpDownIcon,
+    DiffIcon,
+    FilesIcon,
     LinkIcon,
     MinusIcon,
     PlusIcon,
@@ -55,7 +57,6 @@ import {
     OverlaySheetContent,
     OverlaySheetHeader,
     OverlaySheetTitle,
-    OverlaySheetTopClose,
 } from "@/components/ui/overlay-sheet";
 import {
     Switch,
@@ -495,6 +496,17 @@ export default function Account() {
         );
     };
 
+    const [isCopyTopPanelOpen, setIsCopyTopPanelOpen] = createSignal(false);
+    const [isCopyBottomPanelOpen, setIsCopyBottomPanelOpen] =
+        createSignal(false);
+
+    const handleClickCopyItem = () => {
+        closeTopPanel();
+        closeBottomPanel();
+        setIsCopyTopPanelOpen(true);
+        setIsCopyBottomPanelOpen(true);
+    };
+
     const TopPanel = () => {
         return (
             <>
@@ -508,7 +520,7 @@ export default function Account() {
                             : ""}
                     </OverlaySheetTitle>
                 </OverlaySheetHeader>
-                <OverlaySheetBody class="h-full w-full flex-col gap-2">
+                <OverlaySheetBody class="h-fit w-full flex-col gap-2">
                     <div class="justify-satrt flex h-fit flex-row items-center gap-4">
                         <div class="flex h-[96px] w-3/4 flex-col items-center justify-center gap-4">
                             <div class="flex h-[96px] w-full flex-col items-center justify-start gap-4 text-sm">
@@ -653,12 +665,12 @@ export default function Account() {
                             />
                         </div>
                     </div>
-                    <div class="flex h-fit flex-row items-center justify-center gap-1">
+                    <div class="flex h-fit w-full flex-row items-center justify-center gap-1">
                         <Show when={selectedTopItemPackingStyle()}>
                             <ToggleGroup
                                 multiple={false}
                                 orientation="vertical"
-                                class="flex flex-col gap-1 overflow-y-auto"
+                                class="flex w-full flex-col gap-1 overflow-y-auto"
                                 value={
                                     selectedTopItemVariantID()?.toString() ??
                                     null
@@ -677,76 +689,102 @@ export default function Account() {
                                             selectedTopItemSku()?.id
                                     )}
                                 >
-                                    {(variant) => (
-                                        <>
-                                            <ToggleGroupItem
-                                                class="flex w-full flex-row items-center justify-start gap-1"
-                                                value={variant.id.toString()}
-                                            >
-                                                <div class="w-[24px]">
-                                                    <ShopeeLogo />
-                                                </div>
-                                                <div class="flex w-[calc(100%-24px)] flex-row items-center">
-                                                    <div class="w-[calc(100%-160px)] text-nowrap text-left">
-                                                        {nationalFlags[
-                                                            iaIdToShopMap()?.get(
-                                                                resolveItemPlatform(
-                                                                    variant
+                                    {(variant) => {
+                                        const itemPlatformIDs =
+                                            selectedTopItem()?.item_platforms?.map(
+                                                (platform) => platform.id
+                                            );
+                                        const isOriginalItemPlatform =
+                                            itemPlatformIDs?.includes(
+                                                variant.item_platform_id
+                                            );
+                                        return (
+                                            <>
+                                                <ToggleGroupItem
+                                                    class="flex w-full flex-row items-center justify-start gap-1"
+                                                    value={variant.id.toString()}
+                                                >
+                                                    <div class="w-[20px]">
+                                                        <ShopeeLogo />
+                                                    </div>
+                                                    <div class="flex w-full flex-row items-center">
+                                                        <div class="w-[calc(100%-124px)] text-nowrap text-left">
+                                                            {nationalFlags[
+                                                                iaIdToShopMap()?.get(
+                                                                    resolveItemPlatform(
+                                                                        variant
+                                                                    )
+                                                                        ?.integration_account_id ??
+                                                                        0
                                                                 )
-                                                                    ?.integration_account_id ??
-                                                                    0
-                                                            )
-                                                                ?.region as keyof typeof nationalFlags
-                                                        ] ?? "Unknown"}
-                                                        {truncateText(
-                                                            iaIdToShopMap()?.get(
-                                                                resolveItemPlatform(
-                                                                    variant
-                                                                )
-                                                                    ?.integration_account_id ??
-                                                                    0
-                                                            )?.shop_name ??
-                                                                "unknown shop",
-                                                            10
-                                                        )}
+                                                                    ?.region as keyof typeof nationalFlags
+                                                            ] ?? "Unknown"}
+                                                            {truncateText(
+                                                                iaIdToShopMap()?.get(
+                                                                    resolveItemPlatform(
+                                                                        variant
+                                                                    )
+                                                                        ?.integration_account_id ??
+                                                                        0
+                                                                )?.shop_name ??
+                                                                    "unknown shop",
+                                                                12
+                                                            )}
+                                                        </div>
+                                                        <div class="w-[56px] text-right">
+                                                            {variant
+                                                                .sellable_inventory
+                                                                ?.on_hand ??
+                                                                "N/A"}{" "}
+                                                            {variant
+                                                                .sellable_inventory
+                                                                ?.unit_code ??
+                                                                ""}
+                                                        </div>
+                                                        <div class="inline-flex w-[32px] flex-col items-center justify-end text-right">
+                                                            <Button
+                                                                size="xs"
+                                                                onClick={() => {
+                                                                    setSelectedTopItemVariantID(
+                                                                        variant.id
+                                                                    );
+                                                                    setIsQuantityChangeDrawerOpen(
+                                                                        true
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <DiffIcon class="max-h-3 max-w-3" />
+                                                            </Button>
+                                                        </div>
+                                                        <div class="inline-flex w-[32px] flex-col items-center justify-end text-right">
+                                                            <Show
+                                                                when={
+                                                                    isOriginalItemPlatform
+                                                                }
+                                                            >
+                                                                <Button
+                                                                    size="xs"
+                                                                    onClick={
+                                                                        handleClickCopyItem
+                                                                    }
+                                                                >
+                                                                    <FilesIcon class="max-h-3 max-w-3" />
+                                                                </Button>
+                                                            </Show>
+                                                        </div>
                                                     </div>
-                                                    <div class="w-[64px] text-right">
-                                                        {variant
-                                                            .sellable_inventory
-                                                            ?.on_hand ??
-                                                            "N/A"}{" "}
-                                                        {variant
-                                                            .sellable_inventory
-                                                            ?.unit_code ?? ""}
-                                                    </div>
-                                                    <div class="inline-flex w-[96px] flex-col items-center justify-end text-right">
-                                                        <Button
-                                                            variant="primary"
-                                                            size="xs"
-                                                            onClick={() => {
-                                                                setSelectedTopItemVariantID(
-                                                                    variant.id
-                                                                );
-                                                                setIsQuantityChangeDrawerOpen(
-                                                                    true
-                                                                );
-                                                            }}
-                                                        >
-                                                            {"数量変更"}
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </ToggleGroupItem>
-                                        </>
-                                    )}
+                                                </ToggleGroupItem>
+                                            </>
+                                        );
+                                    }}
                                 </For>
                             </ToggleGroup>
                         </Show>
                     </div>
                 </OverlaySheetBody>
-                <OverlaySheetTopClose onClick={closeTopPanel}>
-                    Close
-                </OverlaySheetTopClose>
+                <OverlaySheetBottomClose onClick={closeTopPanel}>
+                    {"Close"}
+                </OverlaySheetBottomClose>
             </>
         );
     };
@@ -764,7 +802,7 @@ export default function Account() {
                             : ""}
                     </OverlaySheetTitle>
                 </OverlaySheetHeader>
-                <OverlaySheetBody class="h-full w-full flex-col gap-2">
+                <OverlaySheetBody class="h-fit w-full flex-col gap-2">
                     <div class="justify-satrt flex h-fit flex-row items-center gap-4">
                         <div class="flex h-[96px] w-3/4 flex-col items-center justify-center gap-4">
                             <div class="flex h-[96px] w-full flex-col items-center justify-start gap-4 text-sm">
@@ -963,6 +1001,11 @@ export default function Account() {
         }
     };
 
+    const closeCopyPanels = () => {
+        setIsCopyTopPanelOpen(false);
+        setIsCopyBottomPanelOpen(false);
+    };
+
     const ItemsSection = () => {
         return (
             <div class="relative h-full w-full overflow-hidden">
@@ -1109,11 +1152,11 @@ export default function Account() {
                                                                                     );
                                                                                 return (
                                                                                     <div class="flex flex-row items-center justify-start gap-2 text-sm">
-                                                                                        <p class="w-[24px]">
+                                                                                        <p class="w-[20px]">
                                                                                             <ShopeeLogo />
                                                                                         </p>
-                                                                                        <div class="flex w-[calc(100%-24px)] flex-row items-center justify-start gap-1">
-                                                                                            <p class="w-1/3 text-nowrap text-center align-middle text-sm">
+                                                                                        <div class="flex w-[calc(100%-20px)] flex-row items-center justify-start gap-1">
+                                                                                            <p class="w-[36%] text-nowrap text-center align-middle text-sm">
                                                                                                 {" "}
                                                                                                 {
                                                                                                     nationalFlags[
@@ -1122,20 +1165,21 @@ export default function Account() {
                                                                                                 }{" "}
                                                                                                 {truncateText(
                                                                                                     shop?.shop_name ??
-                                                                                                        "unknown shop"
+                                                                                                        "unknown shop",
+                                                                                                    8
                                                                                                 )}
                                                                                             </p>
-                                                                                            <p class="w-1/3 text-nowrap text-center align-middle text-sm">
+                                                                                            <p class="w-[40%] text-nowrap text-center align-middle text-sm">
                                                                                                 {truncateText(
                                                                                                     resolveItemSku(
                                                                                                         itemVariant
                                                                                                     )
                                                                                                         ?.hash_code ??
                                                                                                         "unknown sku",
-                                                                                                    10
+                                                                                                    8
                                                                                                 )}
                                                                                             </p>
-                                                                                            <p class="w-1/3 text-nowrap text-center align-middle text-sm">
+                                                                                            <p class="w-[24%] text-nowrap text-center align-middle text-sm">
                                                                                                 {itemVariant
                                                                                                     .sellable_inventory
                                                                                                     ?.on_hand ??
@@ -1189,6 +1233,46 @@ export default function Account() {
                             </>
                         }
                         bottomChildren={<BottomPanel />}
+                    />
+                </OverlaySheet>
+                <OverlaySheet
+                    portalMount={portalMount}
+                    topOpen={isCopyTopPanelOpen()}
+                    bottomOpen={isCopyBottomPanelOpen()}
+                    setTopOpen={setIsCopyTopPanelOpen}
+                    setBottomOpen={setIsCopyBottomPanelOpen}
+                    onTopOpenChange={setIsCopyTopPanelOpen}
+                    onBottomOpenChange={setIsCopyBottomPanelOpen}
+                    topHeight="0"
+                    centerHeight="20vh"
+                    bottomHeight="80vh"
+                >
+                    <OverlaySheetContent
+                        position="top"
+                        size="md"
+                        topChildren={<></>}
+                        centerChildren={
+                            <>
+                                <Show when={isItemMergeable()}>
+                                    <div class="flex flex-col gap-1 text-sm">
+                                        <Button onClick={handleMergeVariant}>
+                                            <LinkIcon />
+                                        </Button>
+                                    </div>
+                                </Show>
+                            </>
+                        }
+                        bottomChildren={
+                            <>
+                                <OverlaySheetBottomClose
+                                    onClick={() => {
+                                        closeCopyPanels();
+                                    }}
+                                >
+                                    {"Cancel"}
+                                </OverlaySheetBottomClose>
+                            </>
+                        }
                     />
                 </OverlaySheet>
             </div>
