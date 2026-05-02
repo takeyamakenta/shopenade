@@ -952,7 +952,7 @@ export default function Account() {
             if (!packingStyleHash) {
                 setIsBottomPanelOpen(true);
                 return;
-            };
+            }
             const selectedItemPackingStyle =
                 selectedBottomItem()?.item_packing_styles?.find(
                     (packingStyle) =>
