@@ -17,6 +17,7 @@ function checkValid(
     errors: Record<string, ErrorClass>,
     errorClass: string
 ) {
+    console.log("checkValid", element.name, element.value, validators.length);
     return async (
         e: Event | undefined = undefined,
         value: string | number | undefined | null = undefined
@@ -71,25 +72,38 @@ export function useForm({ errorClass }: { errorClass: string }) {
         createEffect(() => {
             configs[ref.name] = config;
         });
-        createEffect(() => {
-            if (ref.type === "hidden") {
-                checkValid(
-                    config,
-                    setErrors,
-                    errors,
-                    errorClass
-                )(undefined, valueAccessor());
-                fields[ref.name] = ref.value;
-            }
-        });
+        console.log("validate", ref.name, ref.type, ref.value);
+        if (ref.type === "hidden") {
+            checkValid(
+                config,
+                setErrors,
+                errors,
+                errorClass
+            )(undefined, valueAccessor());
+            fields[ref.name] = ref.value;
+            const mutationObserver = new MutationObserver((mutations) => {
+                for (const mutation of mutations) {
+                    if (mutation.type === "attributes" && mutation.attributeName === "value") {
+                        checkValid(config, setErrors, errors, errorClass)(undefined, undefined);
+                    }
+                }
+            });
+            mutationObserver.observe(ref, { attributes: true });
+        }
         if (ref.type !== "hidden") {
-            ref.onchange = checkValid(config, setErrors, errors, errorClass);
             ref.oninput = () => {
+                console.log("oninput", ref.name, ref.value);
                 if (errors[ref.name]) {
                     setErrors({ [ref.name]: undefined });
                     if (errorClass) ref.classList.toggle(errorClass, false);
                 }
                 fields[ref.name] = ref.value;
+                checkValid(
+                    config,
+                    setErrors,
+                    errors,
+                    errorClass
+                )(undefined, ref.value);
             };
         }
     };
@@ -113,7 +127,7 @@ export function useForm({ errorClass }: { errorClass: string }) {
                     errored = true;
                 }
             }
-            console.log({fields});
+            console.log({ fields });
             if (!errored) callback(fields);
         };
     };

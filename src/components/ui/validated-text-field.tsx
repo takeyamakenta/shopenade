@@ -1,22 +1,24 @@
-import type { ValidComponent, VoidProps, Accessor } from "solid-js";
+import type { Accessor, ValidComponent, VoidProps } from "solid-js";
 import { splitProps } from "solid-js";
 
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import type { TextFieldInputProps } from "@kobalte/core/text-field";
-import { Validator } from "@/libs/form/validation";
 
+import { Validator } from "@/libs/form/validation";
 import { cn } from "@/libs/utils";
 
 type myTextFieldInputProps<T extends ValidComponent = "input"> = VoidProps<
     TextFieldInputProps<T> & {
         class?: string;
         //validate?: (ref: HTMLInputElement, accessor: () => Validator[]) => void;
-        validate?: (ref: HTMLInputElement, accessor: () => [Validator[], Accessor<string|undefined|null>]) => void;
+        validate?: (
+            ref: HTMLInputElement,
+            accessor: () => [Validator[], Accessor<string | undefined | null>]
+        ) => void;
         validators?: Validator[];
-        valueAccessor?: Accessor<string|number|undefined|null>;
+        valueAccessor?: Accessor<string | number | undefined | null>;
     }
 >;
-
 
 export const ValidatedTextField = <T extends ValidComponent = "input">(
     props: PolymorphicProps<T, myTextFieldInputProps<T>>
@@ -32,7 +34,10 @@ export const ValidatedTextField = <T extends ValidComponent = "input">(
             )}
             {...rest}
             // @ts-expect-error this is a solid-js component
-            use:validate={[rest.validators ?? [], rest.valueAccessor ?? (() => undefined)]}
+            use:validate={[
+                rest.validators ?? [],
+                rest.valueAccessor ?? (() => undefined),
+            ]}
         />
     );
 };

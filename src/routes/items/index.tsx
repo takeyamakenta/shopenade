@@ -68,7 +68,6 @@ import {
 } from "@/components/ui/switch";
 import { showToast } from "@/components/ui/toast";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ValidatedTextField } from "@/components/ui/validated-text-field";
 import NavFooter from "@/layouts/NavFooter";
 import NavHeader from "@/layouts/NavHeader";
 import { getItemSku } from "@/libs/RPCs/item/getItemSku";
@@ -77,24 +76,28 @@ import { mergeVariant } from "@/libs/RPCs/item/mergeVariant";
 import { setVariantStock } from "@/libs/RPCs/item/setVariantStock";
 import { getShopeeShops } from "@/libs/RPCs/oauth/getShopeeShops";
 import { nationalFlags } from "@/libs/const/nationalFlags";
-import { serializeError } from "@/libs/error/reportError";
-import { ErrorClass, useForm, Validator } from "@/libs/form/validation";
+import { hasError, serializeError } from "@/libs/error/reportError";
+import { ErrorClass, Validator, useForm } from "@/libs/form/validation";
 import { truncateText } from "@/libs/text/truncateText";
 import CopyItemsStepper from "@/routes/items/components/copyItemsStepper";
-import { hasError } from "@/libs/error/reportError";
 
 const initData = query(async () => {
     "use server";
-    const { success, data } = await getShopeeShops();
-    const iaIdToShopMap = new Map<number, ShopeeShopAccount>();
-    if (success && data) {
-        data.forEach((account) => {
-            if (account.shopee_shop_account) {
-                iaIdToShopMap.set(account.id, account.shopee_shop_account);
-            }
-        });
+    try {
+        const { success, data } = await getShopeeShops();
+        const iaIdToShopMap = new Map<number, ShopeeShopAccount>();
+        if (success && data) {
+            data.forEach((account) => {
+                if (account.shopee_shop_account) {
+                    iaIdToShopMap.set(account.id, account.shopee_shop_account);
+                }
+            });
+        }
+        return iaIdToShopMap;
+    } catch (error) {
+        console.error(error);
+        return new Map<number, ShopeeShopAccount>();
     }
-    return iaIdToShopMap;
 }, "iaIdToShopMap");
 
 export const route = {
@@ -1034,10 +1037,6 @@ export default function Items() {
                     errorClass: "error",
                 });
 
-                createEffect(() => {
-                    local.setErrors(errors);
-                });
-
                 const handleSubmit = (fields: Record<string, unknown>) => {
                     if (hasError(errors)) {
                         local.setErrors(errors);
@@ -1051,11 +1050,44 @@ export default function Items() {
                     local.setCurrentStep(local.currentStep + 1);
                 };
 
-                const validators : Validator[] = [
+                const validators: Validator[] = [
                     async (element: HTMLInputElement) => {
-                        return element.value === "1" ? "Invalid value" : undefined;
+                        return element.value === "1"
+                            ? "Invalid value"
+                            : undefined;
                     },
                 ];
+
+                createEffect(() => {
+                    local.setErrors(errors);
+                    console.log("errors", errors);
+                });
+
+                const [
+                    selectedIntegrationAccountId,
+                    setSelectedIntegrationAccountId,
+                ] = createSignal<number | null>(null);
+
+                const onSelectIntegrationAccountId = (
+                    api: NonNullable<ReturnType<CarouselApi>>
+                ) => {
+                    setSelectedIntegrationAccountId(api.selectedScrollSnap());
+                };
+
+                const [
+                    integrationAccountIdCarouselApi,
+                    setIntegrationAccountIdCarouselApi,
+                ] = createSignal<ReturnType<CarouselApi>>();
+
+                createEffect(() => {
+                    if (!integrationAccountIdCarouselApi()) {
+                        return;
+                    }
+                    integrationAccountIdCarouselApi()?.on(
+                        "select",
+                        onSelectIntegrationAccountId
+                    );
+                });
 
                 return (
                     <form
@@ -1063,13 +1095,48 @@ export default function Items() {
                         // @ts-expect-error formSubmit is not a valid prop
                         use:formSubmit={handleSubmit}
                     >
-                        <ValidatedTextField
-                            validate={validate}
-                            validators={validators}
+                        <div class="relative flex h-[32px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
+                            <Carousel
+                                orientation="vertical"
+                                setApi={setIntegrationAccountIdCarouselApi}
+                            >
+                                <CarouselContent class="h-[48px] w-full">
+                                    <For
+                                        each={Array.from(
+                                            iaIdToShopMap()?.keys() ?? []
+                                        )}
+                                    >
+                                        {(iaId) => (
+                                            <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
+                                                <p class="text-md">{iaId}</p>
+                                            </CarouselItem>
+                                        )}
+                                    </For>
+                                </CarouselContent>
+                                <Show
+                                    when={
+                                        (Object.values(iaIdToShopMap() ?? {})
+                                            .length ?? 0) > 1
+                                    }
+                                >
+                                    <p class="absolute right-0 top-[8px]">
+                                        <ChevronsUpDownIcon class="size-4" />
+                                    </p>
+                                </Show>
+                            </Carousel>
+                        </div>
+                        <input
+                            // @ts-expect-error this is a solid-js componen
+                            use:validate={[
+                                validators,
+                                () => undefined,
+                            ]}
                             class="w-full"
                             name="integration_account_id"
                             type="hidden"
-                            value={"999"}
+                            value={
+                                selectedIntegrationAccountId()?.toString() ?? ""
+                            }
                             required
                         />
                         <p>{errors.integration_account_id as string}</p>
@@ -1077,7 +1144,8 @@ export default function Items() {
                     </form>
                 );
             },
-        },{
+        },
+        {
             title: "Copy Item2",
             description: "Copy the item to the selected item2",
             icon: CopyIcon,
@@ -1111,9 +1179,11 @@ export default function Items() {
                     local.setCurrentStep(local.currentStep + 1);
                 };
 
-                const validators : Validator[] = [
+                const validators: Validator[] = [
                     async (element: HTMLInputElement) => {
-                        return element.value === "1" ? "Invalid value" : undefined;
+                        return element.value === "1"
+                            ? "Invalid value"
+                            : undefined;
                     },
                 ];
 
@@ -1134,7 +1204,9 @@ export default function Items() {
         Record<string, unknown>
     >({});
 
-    const [copyItemStepErrors, setCopyItemStepErrors] = createSignal<Record<string, ErrorClass>>({});
+    const [copyItemStepErrors, setCopyItemStepErrors] = createSignal<
+        Record<string, ErrorClass>
+    >({});
 
     const ItemsSection = () => {
         return (
