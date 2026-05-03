@@ -26,15 +26,12 @@ export const serializeError = (error: unknown) => {
  * @param errors Record<string, ErrorClass> エラーオブジェクト
  * @returns 有効なエラーがあるかどうか
  */
-export const hasError = (errors: Record<string, ErrorClass>) => {
-    console.log(errors);
+export const hasError = (errors: Record<string, ErrorClass>): boolean => {
     return Object.values(errors).some((error) => {
         if (typeof error === "string") {
             return error !== "" && error !== undefined && error !== null;
         } else if (typeof error === "object") {
-            return Object.values(error).some((error) => {
-                return error !== "" && error !== undefined && error !== null;
-            });
+            return hasError(error);
         }
         return false;
     });

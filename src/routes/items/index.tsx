@@ -1,5 +1,6 @@
 import {
     ChevronsUpDownIcon,
+    CopyIcon,
     DiffIcon,
     FilesIcon,
     LinkIcon,
@@ -26,6 +27,7 @@ import { ItemPackingStyle } from "@/@types/ItemPackingStyle";
 import { ItemSku } from "@/@types/ItemSku";
 import { ItemVariant } from "@/@types/ItemVariant";
 import { ShopeeShopAccount } from "@/@types/ShopeeShopAccount";
+import { Step, StepFormComponentProps } from "@/@types/Step";
 import { ShopeeLogo } from "@/components/images/shopeeLogo";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +68,7 @@ import {
 } from "@/components/ui/switch";
 import { showToast } from "@/components/ui/toast";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ValidatedTextField } from "@/components/ui/validated-text-field";
 import NavFooter from "@/layouts/NavFooter";
 import NavHeader from "@/layouts/NavHeader";
 import { getItemSku } from "@/libs/RPCs/item/getItemSku";
@@ -75,7 +78,10 @@ import { setVariantStock } from "@/libs/RPCs/item/setVariantStock";
 import { getShopeeShops } from "@/libs/RPCs/oauth/getShopeeShops";
 import { nationalFlags } from "@/libs/const/nationalFlags";
 import { serializeError } from "@/libs/error/reportError";
+import { ErrorClass, useForm, Validator } from "@/libs/form/validation";
 import { truncateText } from "@/libs/text/truncateText";
+import CopyItemsStepper from "@/routes/items/components/copyItemsStepper";
+import { hasError } from "@/libs/error/reportError";
 
 const initData = query(async () => {
     "use server";
@@ -95,7 +101,7 @@ export const route = {
     preload: () => initData(),
 };
 
-export default function Account() {
+export default function Items() {
     const [items, setItems] = createSignal<Item[]>([]);
     const iaIdToShopMap = createAsync(() => initData());
     onMount(async () => {
@@ -1006,6 +1012,130 @@ export default function Account() {
         setIsCopyBottomPanelOpen(false);
     };
 
+    const [copyItemCurrentStep, setCopyItemCurrentStep] =
+        createSignal<number>(0);
+    const [copyItemErrorMessage, setCopyItemErrorMessage] =
+        createSignal<string>("");
+    const [copyItemSteps, setCopyItemSteps] = createSignal<Step[]>([
+        {
+            title: "Copy Item1",
+            description: "Copy the item to the selected item",
+            icon: CopyIcon,
+            stepFormComponent: (props: StepFormComponentProps) => {
+                const [local, others] = splitProps(props, [
+                    "currentStep",
+                    "setCurrentStep",
+                    "stepAttributes",
+                    "setStepAttributes",
+                    "setErrors",
+                ]);
+
+                const { formSubmit, errors, validate } = useForm({
+                    errorClass: "error",
+                });
+
+                createEffect(() => {
+                    local.setErrors(errors);
+                });
+
+                const handleSubmit = (fields: Record<string, unknown>) => {
+                    if (hasError(errors)) {
+                        local.setErrors(errors);
+                        return;
+                    }
+                    local.setStepAttributes({
+                        ...local.stepAttributes,
+                        ...fields,
+                    });
+                    console.log(local.stepAttributes);
+                    local.setCurrentStep(local.currentStep + 1);
+                };
+
+                const validators : Validator[] = [
+                    async (element: HTMLInputElement) => {
+                        return element.value === "1" ? "Invalid value" : undefined;
+                    },
+                ];
+
+                return (
+                    <form
+                        class="flex w-full flex-col items-center gap-4"
+                        // @ts-expect-error formSubmit is not a valid prop
+                        use:formSubmit={handleSubmit}
+                    >
+                        <ValidatedTextField
+                            validate={validate}
+                            validators={validators}
+                            class="w-full"
+                            name="integration_account_id"
+                            type="hidden"
+                            value={"999"}
+                            required
+                        />
+                        <p>{errors.integration_account_id as string}</p>
+                        <Button type="submit">Next</Button>
+                    </form>
+                );
+            },
+        },{
+            title: "Copy Item2",
+            description: "Copy the item to the selected item2",
+            icon: CopyIcon,
+            stepFormComponent: (props: StepFormComponentProps) => {
+                const [local, others] = splitProps(props, [
+                    "currentStep",
+                    "setCurrentStep",
+                    "stepAttributes",
+                    "setStepAttributes",
+                    "setErrors",
+                ]);
+
+                const { formSubmit, errors, validate } = useForm({
+                    errorClass: "error",
+                });
+
+                createEffect(() => {
+                    local.setErrors(errors);
+                });
+
+                const handleSubmit = (fields: Record<string, unknown>) => {
+                    if (hasError(errors)) {
+                        local.setErrors(errors);
+                        return;
+                    }
+                    local.setStepAttributes({
+                        ...local.stepAttributes,
+                        ...fields,
+                    });
+                    console.log(local.stepAttributes);
+                    local.setCurrentStep(local.currentStep + 1);
+                };
+
+                const validators : Validator[] = [
+                    async (element: HTMLInputElement) => {
+                        return element.value === "1" ? "Invalid value" : undefined;
+                    },
+                ];
+
+                return (
+                    <>
+                        <p>Copy Item2</p>
+                    </>
+                );
+            },
+        },
+    ]);
+
+    const currentCopyItemStep = createMemo(() => {
+        return copyItemSteps()[copyItemCurrentStep()];
+    });
+
+    const [copyItemStepAttributes, setCopyItemStepAttributes] = createSignal<
+        Record<string, unknown>
+    >({});
+
+    const [copyItemStepErrors, setCopyItemStepErrors] = createSignal<Record<string, ErrorClass>>({});
+
     const ItemsSection = () => {
         return (
             <div class="relative h-full w-full overflow-hidden">
@@ -1244,26 +1374,34 @@ export default function Account() {
                     onTopOpenChange={setIsCopyTopPanelOpen}
                     onBottomOpenChange={setIsCopyBottomPanelOpen}
                     topHeight="0"
-                    centerHeight="20vh"
-                    bottomHeight="80vh"
+                    centerHeight="30vh"
+                    bottomHeight="70vh"
                 >
                     <OverlaySheetContent
                         position="top"
                         size="md"
                         topChildren={<></>}
                         centerChildren={
-                            <>
-                                <Show when={isItemMergeable()}>
-                                    <div class="flex flex-col gap-1 text-sm">
-                                        <Button onClick={handleMergeVariant}>
-                                            <LinkIcon />
-                                        </Button>
-                                    </div>
-                                </Show>
-                            </>
+                            <CopyItemsStepper
+                                currentStep={copyItemCurrentStep()}
+                                setCurrentStep={setCopyItemCurrentStep}
+                                steps={copyItemSteps()}
+                                errors={copyItemStepErrors()}
+                            />
                         }
                         bottomChildren={
                             <>
+                                <Show when={currentCopyItemStep()}>
+                                    {currentCopyItemStep()?.stepFormComponent({
+                                        currentStep: copyItemCurrentStep(),
+                                        setCurrentStep: setCopyItemCurrentStep,
+                                        stepAttributes:
+                                            copyItemStepAttributes(),
+                                        setStepAttributes:
+                                            setCopyItemStepAttributes,
+                                        setErrors: setCopyItemStepErrors,
+                                    })}
+                                </Show>
                                 <OverlaySheetBottomClose
                                     onClick={() => {
                                         closeCopyPanels();

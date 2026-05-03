@@ -118,7 +118,7 @@ export function NotificationConfigDialog(props: {
 
     const validators: Validator[] = [
         async (element: HTMLInputElement) => {
-            if (!element.value) {
+            if (!element.value && element.id) {
                 return "選択してください";
             }
             return undefined;

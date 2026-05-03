@@ -83,14 +83,13 @@ export function useForm({ errorClass }: { errorClass: string }) {
             }
         });
         if (ref.type !== "hidden") {
-            ref.onblur = checkValid(config, setErrors, errors, errorClass);
+            ref.onchange = checkValid(config, setErrors, errors, errorClass);
             ref.oninput = () => {
                 if (errors[ref.name]) {
                     setErrors({ [ref.name]: undefined });
                     if (errorClass) ref.classList.toggle(errorClass, false);
-                } else {
-                    fields[ref.name] = ref.value;
                 }
+                fields[ref.name] = ref.value;
             };
         }
     };
