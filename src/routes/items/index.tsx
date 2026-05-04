@@ -1,5 +1,6 @@
 import {
     ChevronsUpDownIcon,
+    StoreIcon,
     CopyIcon,
     DiffIcon,
     FilesIcon,
@@ -80,6 +81,7 @@ import { hasError, serializeError } from "@/libs/error/reportError";
 import { ErrorClass, Validator, useForm } from "@/libs/form/validation";
 import { truncateText } from "@/libs/text/truncateText";
 import CopyItemsStepper from "@/routes/items/components/copyItemsStepper";
+import { resolveItemPlatform, resolveItemPackingStyle, resolveItemSku } from "@/libs/item/resolve";
 
 const initData = query(async () => {
     "use server";
@@ -194,41 +196,8 @@ export default function Items() {
             : skus;
     });
 
-    const resolveItemPlatform = (itemVariant: ItemVariant) => {
-        return (
-            items()
-                ?.flatMap((item) => item.item_platforms)
-                ?.find(
-                    (platform) =>
-                        (platform?.id ?? 0) ===
-                        (itemVariant.item_platform_id ?? 0)
-                ) ?? null
-        );
-    };
-
-    const resolveItemPackingStyle = (itemVariant: ItemVariant) => {
-        return (
-            items()
-                ?.flatMap((item) => item.item_packing_styles)
-                ?.find(
-                    (packingStyle) =>
-                        (packingStyle?.id ?? 0) ===
-                        (itemVariant.item_packing_style_id ?? 0)
-                ) ?? null
-        );
-    };
-
-    const resolveItemSku = (itemVariant: ItemVariant) => {
-        return (
-            items()
-                ?.flatMap((item) => item.item_skus)
-                ?.find(
-                    (sku) => (sku?.id ?? 0) === (itemVariant.item_sku_id ?? 0)
-                ) ?? null
-        );
-    };
-
-    const hashPackingStyle = (packingStyle: ItemPackingStyle) => {
+    const hashPackingStyle = (packingStyle: ItemPackingStyle | null | undefined) => {
+        if (!packingStyle) return "";
         return `${packingStyle.packing_width}x${packingStyle.packing_height}x${packingStyle.packing_length} ${packingStyle.length_unit_code} ${packingStyle.packing_weight} ${packingStyle.weight_unit_code} ${packingStyle.factor_by_base_unit} ${packingStyle.unit_code}`;
     };
 
@@ -238,7 +207,7 @@ export default function Items() {
         const groups: Record<string, ItemVariant[]> = {};
         if (!itemVariants) return groups;
         for (const variant of itemVariants) {
-            const packingStyle = resolveItemPackingStyle(variant);
+            const packingStyle = resolveItemPackingStyle(items(), variant);
             if (!packingStyle) continue;
             const key = hashPackingStyle(packingStyle);
             if (!groups[key]) {
@@ -409,7 +378,7 @@ export default function Items() {
         if (!selectedTopItemVariant()) {
             return undefined;
         }
-        return resolveItemPlatform(selectedTopItemVariant() as ItemVariant);
+        return resolveItemPlatform(items(), selectedTopItemVariant() as ItemVariant);
     });
 
     const [isQuantityChangeDrawerOpen, setIsQuantityChangeDrawerOpen] =
@@ -509,7 +478,11 @@ export default function Items() {
     const [isCopyBottomPanelOpen, setIsCopyBottomPanelOpen] =
         createSignal(false);
 
-    const handleClickCopyItem = () => {
+    const [toCopyItemVariant, setToCopyItemVariant] =
+        createSignal<ItemVariant | null>(null);
+
+    const handleClickCopyItem = (itemVariant: ItemVariant) => {
+        setToCopyItemVariant(itemVariant);
         closeTopPanel();
         closeBottomPanel();
         setIsCopyTopPanelOpen(true);
@@ -721,6 +694,7 @@ export default function Items() {
                                                             {nationalFlags[
                                                                 iaIdToShopMap()?.get(
                                                                     resolveItemPlatform(
+                                                                        items(),
                                                                         variant
                                                                     )
                                                                         ?.integration_account_id ??
@@ -731,6 +705,7 @@ export default function Items() {
                                                             {truncateText(
                                                                 iaIdToShopMap()?.get(
                                                                     resolveItemPlatform(
+                                                                        items(),
                                                                         variant
                                                                     )
                                                                         ?.integration_account_id ??
@@ -773,8 +748,10 @@ export default function Items() {
                                                             >
                                                                 <Button
                                                                     size="xs"
-                                                                    onClick={
-                                                                        handleClickCopyItem
+                                                                    onClick={() =>
+                                                                        handleClickCopyItem(
+                                                                            variant
+                                                                        )
                                                                     }
                                                                 >
                                                                     <FilesIcon class="max-h-3 max-w-3" />
@@ -935,6 +912,7 @@ export default function Items() {
                                                         {nationalFlags[
                                                             iaIdToShopMap()?.get(
                                                                 resolveItemPlatform(
+                                                                    items(),
                                                                     variant
                                                                 )
                                                                     ?.integration_account_id ??
@@ -945,6 +923,7 @@ export default function Items() {
                                                         {truncateText(
                                                             iaIdToShopMap()?.get(
                                                                 resolveItemPlatform(
+                                                                    items(),
                                                                     variant
                                                                 )
                                                                     ?.integration_account_id ??
@@ -1021,9 +1000,9 @@ export default function Items() {
         createSignal<string>("");
     const [copyItemSteps, setCopyItemSteps] = createSignal<Step[]>([
         {
-            title: "Copy Item1",
-            description: "Copy the item to the selected item",
-            icon: CopyIcon,
+            title: "店舗選択",
+            description: "コピー先の店舗を選択してください",
+            icon: StoreIcon,
             stepFormComponent: (props: StepFormComponentProps) => {
                 const [local, others] = splitProps(props, [
                     "currentStep",
@@ -1037,7 +1016,7 @@ export default function Items() {
                     errorClass: "error",
                 });
 
-                const handleSubmit = (fields: Record<string, unknown>) => {
+                const handleNext = (fields: Record<string, unknown>) => {
                     if (hasError(errors)) {
                         local.setErrors(errors);
                         return;
@@ -1046,7 +1025,6 @@ export default function Items() {
                         ...local.stepAttributes,
                         ...fields,
                     });
-                    console.log(local.stepAttributes);
                     local.setCurrentStep(local.currentStep + 1);
                 };
 
@@ -1089,11 +1067,13 @@ export default function Items() {
                     );
                 });
 
+                const toCopyItemPlatform = resolveItemPlatform(items(), toCopyItemVariant() as ItemVariant);
+
                 return (
                     <form
                         class="flex w-full flex-col items-center gap-4"
                         // @ts-expect-error formSubmit is not a valid prop
-                        use:formSubmit={handleSubmit}
+                        use:formSubmit={handleNext}
                     >
                         <div class="relative flex h-[32px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
                             <Carousel
@@ -1103,12 +1083,12 @@ export default function Items() {
                                 <CarouselContent class="h-[48px] w-full">
                                     <For
                                         each={Array.from(
-                                            iaIdToShopMap()?.keys() ?? []
-                                        )}
+                                            iaIdToShopMap()?.values() ?? []
+                                        ).filter((shop) => shop.integration_account_id !== toCopyItemPlatform?.integration_account_id)}
                                     >
-                                        {(iaId) => (
+                                        {(shop) => (
                                             <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
-                                                <p class="text-md">{iaId}</p>
+                                                <p class="text-md text-nowrap"> {nationalFlags[shop.region as keyof typeof nationalFlags] ?? "❓"} {truncateText(shop.shop_name ?? "unknown shop", 10)}</p>
                                             </CarouselItem>
                                         )}
                                     </For>
@@ -1127,10 +1107,7 @@ export default function Items() {
                         </div>
                         <input
                             // @ts-expect-error this is a solid-js componen
-                            use:validate={[
-                                validators,
-                                () => undefined,
-                            ]}
+                            use:validate={[validators, () => undefined]}
                             class="w-full"
                             name="integration_account_id"
                             type="hidden"
@@ -1166,7 +1143,7 @@ export default function Items() {
                     local.setErrors(errors);
                 });
 
-                const handleSubmit = (fields: Record<string, unknown>) => {
+                const handleNext = (fields: Record<string, unknown>) => {
                     if (hasError(errors)) {
                         local.setErrors(errors);
                         return;
@@ -1207,6 +1184,27 @@ export default function Items() {
     const [copyItemStepErrors, setCopyItemStepErrors] = createSignal<
         Record<string, ErrorClass>
     >({});
+
+    const CopyItemTopPanel = () => {
+        return (
+            <OverlaySheetBody class="h-fit w-full flex-col gap-2 text-sm items-center justify-center">
+                <div class="justify-satrt flex h-fit flex-row items-center justify-between gap-4">
+                    <div class="flex h-full w-2/3 flex-col items-start justify-center gap-1">
+                        <p class="text-sm">{"📛"} {resolveItemPlatform(items(), toCopyItemVariant() as ItemVariant)?.shopee_item?.item_name}</p>
+                        <p class="text-sm">{"🍬"} {resolveItemSku(items(), toCopyItemVariant() as ItemVariant)?.hash_code}</p>
+                        <p class="text-sm">{"📦"} {hashPackingStyle(resolveItemPackingStyle(items(), toCopyItemVariant() as ItemVariant) as ItemPackingStyle)}</p>
+                    </div>
+                    <div class="flex h-full w-1/3 flex-col items-start justify-center gap-1">
+                        <ItemSkuImageCarousel 
+                            class="max-h-[64px] max-w-[64px] w-full"
+                            itemSku={resolveItemSku(items(), toCopyItemVariant() as ItemVariant)}
+                        />
+                    </div>
+                </div>
+                <p class="w-full text-right text-nowrap flex flex-row items-center justify-end gap-1">を別店舗にコピーします<CopyIcon class="size-4" /></p>
+            </OverlaySheetBody>
+        );
+    };
 
     const ItemsSection = () => {
         return (
@@ -1374,6 +1372,7 @@ export default function Items() {
                                                                                             <p class="w-[40%] text-nowrap text-center align-middle text-sm">
                                                                                                 {truncateText(
                                                                                                     resolveItemSku(
+                                                                                                        items(),
                                                                                                         itemVariant
                                                                                                     )
                                                                                                         ?.hash_code ??
@@ -1445,14 +1444,14 @@ export default function Items() {
                     setBottomOpen={setIsCopyBottomPanelOpen}
                     onTopOpenChange={setIsCopyTopPanelOpen}
                     onBottomOpenChange={setIsCopyBottomPanelOpen}
-                    topHeight="0"
+                    topHeight="20vh"
                     centerHeight="30vh"
-                    bottomHeight="70vh"
+                    bottomHeight="50vh"
                 >
                     <OverlaySheetContent
                         position="top"
                         size="md"
-                        topChildren={<></>}
+                        topChildren={<CopyItemTopPanel />}
                         centerChildren={
                             <CopyItemsStepper
                                 currentStep={copyItemCurrentStep()}
