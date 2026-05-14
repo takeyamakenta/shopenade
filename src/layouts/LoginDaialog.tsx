@@ -1,8 +1,6 @@
 import { Accessor, Setter } from "solid-js";
 
-import {
-    signInWithEmailAndPassword
-} from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +41,7 @@ export function LoginDialog(props: {
             if (currentUser) {
                 const newIdToken = await currentUser.getIdToken(true);
                 console.log(newIdToken);
-                await updateSession({idToken: newIdToken});
+                await updateSession({ idToken: newIdToken });
             } else {
                 console.error("currentUser is not found");
             }

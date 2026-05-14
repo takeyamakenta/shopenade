@@ -25,7 +25,7 @@ import {
 import { hasError } from "@/libs/error/reportError";
 import { ErrorClass } from "@/libs/form/validation";
 
-type CopyItemsStepperProps = {
+type CopyItemStepperProps = {
     currentStep: number;
     setCurrentStep: (step: number) => void;
     steps: Step[];
@@ -33,9 +33,9 @@ type CopyItemsStepperProps = {
     errors: Record<string, ErrorClass>;
 };
 
-const CopyItemsStepper: Component<
-    ComponentProps<"div"> & CopyItemsStepperProps
-> = (props: ComponentProps<"div"> & CopyItemsStepperProps) => {
+const CopyItemStepper: Component<
+    ComponentProps<"div"> & CopyItemStepperProps
+> = (props: ComponentProps<"div"> & CopyItemStepperProps) => {
     const [local, others] = splitProps(props, [
         "currentStep",
         "setCurrentStep",
@@ -117,4 +117,4 @@ const CopyItemsStepper: Component<
     );
 };
 
-export default CopyItemsStepper;
+export default CopyItemStepper;

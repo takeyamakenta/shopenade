@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -7,6 +6,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { showToast } from "@/components/ui/toast";
 import { ValidatedTextField } from "@/components/ui/validated-text-field";
 import NavFooter from "@/layouts/NavFooter";
 import NavHeader from "@/layouts/NavHeader";
@@ -14,7 +14,6 @@ import { createUser } from "@/libs/RPCs/auth/createUser";
 import { clientReportError } from "@/libs/error/reportError";
 import { useForm } from "@/libs/form/validation";
 import { useIsLoadingStore } from "@/stores/isLoadingStore";
-import { showToast } from "@/components/ui/toast";
 
 export default function Register() {
     const { setIsLoadingStore, isLoadingStore } = useIsLoadingStore();
@@ -23,7 +22,11 @@ export default function Register() {
         try {
             setIsLoadingStore("isLoading", true);
 
-            const result = await createUser(fields.email, fields.password, fields.name);
+            const result = await createUser(
+                fields.email,
+                fields.password,
+                fields.name
+            );
             if (!result) {
                 throw new Error("Failed to create user");
             }
@@ -46,7 +49,7 @@ export default function Register() {
     ): Promise<string | undefined> => {
         const form = element.closest("form");
         const passwordInput = form?.querySelector<HTMLInputElement>(
-            "input[name=\"password\"]"
+            'input[name="password"]'
         );
         if (passwordInput && element.value !== passwordInput.value) {
             return Promise.resolve("パスワードが一致しません");
@@ -59,8 +62,8 @@ export default function Register() {
             <NavHeader />
             <section class="flex min-h-screen">
                 {/* Left side - Caption */}
-                <div class="hidden lg:flex lg:w-1/2 flex-col justify-center px-12 bg-transparent">
-                    <h1 class="text-4xl font-bold text-gray-900 mb-4">
+                <div class="hidden flex-col justify-center bg-transparent px-12 lg:flex lg:w-1/2">
+                    <h1 class="mb-4 text-4xl font-bold text-gray-900">
                         14日間の無料トライアルを始めよう
                     </h1>
                     <p class="text-lg text-gray-600">
@@ -69,10 +72,10 @@ export default function Register() {
                 </div>
 
                 {/* Right side - Form */}
-                <div class="w-full lg:w-1/2 flex flex-col items-center justify-center px-4 py-8 bg-white">
+                <div class="flex w-full flex-col items-center justify-center bg-white px-4 py-8 lg:w-1/2">
                     {/* Mobile caption */}
-                    <div class="lg:hidden text-center mb-8">
-                        <h1 class="text-2xl font-bold text-gray-900 mb-2">
+                    <div class="mb-8 text-center lg:hidden">
+                        <h1 class="mb-2 text-2xl font-bold text-gray-900">
                             14日間の無料トライアルを始めよう
                         </h1>
                         <p class="text-sm text-gray-600">
@@ -137,7 +140,9 @@ export default function Register() {
                                     <div>
                                         <ValidatedTextField
                                             validate={validate}
-                                            validators={[validateConfirmPassword]}
+                                            validators={[
+                                                validateConfirmPassword,
+                                            ]}
                                             class="w-full"
                                             name="confirmPassword"
                                             type="password"
@@ -159,7 +164,10 @@ export default function Register() {
                                 </Button>
                                 <p class="text-sm text-gray-600">
                                     すでにアカウントをお持ちですか？{" "}
-                                    <a href="/" class="text-blue-600 hover:underline">
+                                    <a
+                                        href="/"
+                                        class="text-blue-600 hover:underline"
+                                    >
                                         ログイン
                                     </a>
                                 </p>

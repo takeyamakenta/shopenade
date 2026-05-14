@@ -6,8 +6,6 @@ import { ErrorClass } from "@/libs/form/validation";
 export type StepFormComponentProps = {
     currentStep: number;
     setCurrentStep: (step: number) => void;
-    stepAttributes: Record<string, unknown>;
-    setStepAttributes: (stepAttributes: Record<string, unknown>) => void;
     setErrors: (errors: Record<string, ErrorClass>) => void;
 };
 
@@ -18,8 +16,6 @@ export type Step = {
     stepFormComponent: (props: {
         currentStep: number;
         setCurrentStep: (step: number) => void;
-        stepAttributes: Record<string, unknown>;
-        setStepAttributes: (stepAattributes: Record<string, unknown>) => void;
         setErrors: (errors: Record<string, ErrorClass>) => void;
     }) => JSX.Element;
 };

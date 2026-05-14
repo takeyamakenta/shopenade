@@ -166,7 +166,7 @@ function NavHeader() {
                 initDataResult()?.authSession?.granted_previleges || [],
                 initDataResult()?.authSession?.role || null,
                 previleges_for_group_code,
-                initDataResult()?.appId,
+                initDataResult()?.appId
             );
             if (previleges !== null && previleges.length === 0) {
                 navigate("/403", {

@@ -80,8 +80,11 @@ import { nationalFlags } from "@/libs/const/nationalFlags";
 import { hasError, serializeError } from "@/libs/error/reportError";
 import { ErrorClass, Validator, useForm } from "@/libs/form/validation";
 import { truncateText } from "@/libs/text/truncateText";
-import CopyItemsStepper from "@/routes/items/components/copyItemsStepper";
+import CopyItemStepper from "@/routes/items/components/copyItemStepper";
 import { resolveItemPlatform, resolveItemPackingStyle, resolveItemSku } from "@/libs/item/resolve";
+import { retrieveCategory } from "@/libs/RPCs/category/retrieveCategory";
+import { Category } from "@/@types/Category";
+import { useCopyItemStepAttributeStore } from "@/stores/items/copyItemStepAttributeStore";
 
 const initData = query(async () => {
     "use server";
@@ -1004,11 +1007,11 @@ export default function Items() {
             description: "コピー先の店舗を選択してください",
             icon: StoreIcon,
             stepFormComponent: (props: StepFormComponentProps) => {
+                const { copyItemStepAttributeStore, setCopyItemStepAttributeStore } = useCopyItemStepAttributeStore();
+
                 const [local, others] = splitProps(props, [
                     "currentStep",
                     "setCurrentStep",
-                    "stepAttributes",
-                    "setStepAttributes",
                     "setErrors",
                 ]);
 
@@ -1016,13 +1019,21 @@ export default function Items() {
                     errorClass: "error",
                 });
 
+                onMount(() => {
+                    setSelectedIntegrationAccountId(Array.from(
+                        iaIdToShopMap()?.values() ?? []
+                    ).filter((shop) => shop.integration_account_id !== toCopyItemPlatform?.integration_account_id)[0]?.integration_account_id ?? null);
+                    console.log("selectedIntegrationAccountId", selectedIntegrationAccountId());
+                });
+
                 const handleNext = (fields: Record<string, unknown>) => {
                     if (hasError(errors)) {
                         local.setErrors(errors);
                         return;
                     }
-                    local.setStepAttributes({
-                        ...local.stepAttributes,
+                    console.log("fields", fields);
+                    setCopyItemStepAttributeStore({
+                        ...copyItemStepAttributeStore,
                         ...fields,
                     });
                     local.setCurrentStep(local.currentStep + 1);
@@ -1038,7 +1049,6 @@ export default function Items() {
 
                 createEffect(() => {
                     local.setErrors(errors);
-                    console.log("errors", errors);
                 });
 
                 const [
@@ -1075,7 +1085,7 @@ export default function Items() {
                         // @ts-expect-error formSubmit is not a valid prop
                         use:formSubmit={handleNext}
                     >
-                        <div class="relative flex h-[32px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
+                        <div class="mt-4 relative flex h-[32px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
                             <Carousel
                                 orientation="vertical"
                                 setApi={setIntegrationAccountIdCarouselApi}
@@ -1123,15 +1133,15 @@ export default function Items() {
             },
         },
         {
-            title: "Copy Item2",
-            description: "Copy the item to the selected item2",
+            title: "カテゴリの確認＆再選択",
+            description: "商品のカテゴリを確認し、変更の必要がある場合は再選択してください",
             icon: CopyIcon,
             stepFormComponent: (props: StepFormComponentProps) => {
+                const { copyItemStepAttributeStore, setCopyItemStepAttributeStore } = useCopyItemStepAttributeStore();
+
                 const [local, others] = splitProps(props, [
                     "currentStep",
                     "setCurrentStep",
-                    "stepAttributes",
-                    "setStepAttributes",
                     "setErrors",
                 ]);
 
@@ -1148,11 +1158,10 @@ export default function Items() {
                         local.setErrors(errors);
                         return;
                     }
-                    local.setStepAttributes({
-                        ...local.stepAttributes,
+                    setCopyItemStepAttributeStore({
+                        ...copyItemStepAttributeStore,
                         ...fields,
                     });
-                    console.log(local.stepAttributes);
                     local.setCurrentStep(local.currentStep + 1);
                 };
 
@@ -1163,6 +1172,37 @@ export default function Items() {
                             : undefined;
                     },
                 ];
+
+                const [currentCategory, setCurrentCategory] = createSignal<Category | null>(null);
+                const [targetCategory, setTargetCategory] = createSignal<Category | null>(null);
+
+                const handleRetrieveCategory = async () => {
+                    try {
+                        const toCopyItemPlatform = resolveItemPlatform(items(), toCopyItemVariant() as ItemVariant);
+                        if (!toCopyItemPlatform || !toCopyItemPlatform.shopee_item?.category_id) throw new Error("To copy item platform or category not found");
+                        const { success, data } = await retrieveCategory(toCopyItemPlatform.integration_account_id, toCopyItemPlatform.shopee_item?.category_id as string, "en");
+                        if (success && data) {
+                            setCurrentCategory(data);
+                        }
+
+                        console.log(copyItemStepAttributeStore);
+                        const targetIntegrationAccountId = copyItemStepAttributeStore.integration_account_id as number;
+                        if (!targetIntegrationAccountId) throw new Error("Target integration account id not found");
+                        const { success: targetSuccess, data: targetData } = await retrieveCategory(targetIntegrationAccountId, toCopyItemPlatform.shopee_item?.category_id as string, "en");
+                        if (targetSuccess && targetData) {
+                            setTargetCategory(targetData);
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    }
+                };
+
+                onMount(async () => {
+                    await handleRetrieveCategory();
+                });
+
+
+                const [category, setCategory] = createSignal<Category | null>(null);
 
                 return (
                     <>
@@ -1453,7 +1493,7 @@ export default function Items() {
                         size="md"
                         topChildren={<CopyItemTopPanel />}
                         centerChildren={
-                            <CopyItemsStepper
+                            <CopyItemStepper
                                 currentStep={copyItemCurrentStep()}
                                 setCurrentStep={setCopyItemCurrentStep}
                                 steps={copyItemSteps()}

@@ -5,11 +5,11 @@ import { useNavigate } from "@solidjs/router";
 
 import { GrantedPrevilege } from "@/@types/GrantedPrevilege";
 import { Button } from "@/components/ui/button";
+import { useAppId } from "@/context/appIdContext";
 import { usePrevilege } from "@/context/previlegeContext";
 import { collectMenu } from "@/libs/auth/collectMenu";
 import { routePrevileges } from "@/libs/const/routePrevileges";
 import { useAuthStore } from "@/stores/authStore";
-import { useAppId } from "@/context/appIdContext";
 
 import styles from "./Layout.module.css";
 

@@ -1,8 +1,16 @@
-import { Accessor, Setter, Show, createMemo, createSignal, createEffect } from "solid-js";
+import {
+    Accessor,
+    Setter,
+    Show,
+    createEffect,
+    createMemo,
+    createSignal,
+} from "solid-js";
 
 import { createAsync, query } from "@solidjs/router";
 
 import { MinuteOption } from "@/@types/MinuteOption";
+import { OneShotNotificationSchedule } from "@/@types/OneShotNotificationSchedule";
 import { Timetable } from "@/@types/Timetable";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +43,6 @@ import { useIsLoadingStore } from "@/stores/isLoadingStore";
 import { ValidatedTextField } from "../ui/validated-text-field";
 import { findMinuteByNumber } from "./findMinuteByNumber";
 import { findTimetableById } from "./findTimetableById";
-import { OneShotNotificationSchedule } from "@/@types/OneShotNotificationSchedule";
 
 export type DayOption = {
     label: string;
@@ -96,7 +103,9 @@ export function NotificationConfigDialog(props: {
                 });
                 props.setIsOpen(false);
             } else {
-                throw new Error(serializeError("Failed to register notification"));
+                throw new Error(
+                    serializeError("Failed to register notification")
+                );
             }
         } catch (error: unknown) {
             clientReportError(error);
@@ -147,8 +156,18 @@ export function NotificationConfigDialog(props: {
     createEffect(() => {
         if (props.isOpen()) {
             console.log(props.editingNotification);
-            setSelectedTimetable(findTimetableById(props.editingNotification?.start_timetable_id?.toString(), props.beforeTimetables()));
-            setSelectedMinute(findMinuteByNumber(props.editingNotification?.timetable_former_mins?.toString(), minuteOptions));
+            setSelectedTimetable(
+                findTimetableById(
+                    props.editingNotification?.start_timetable_id?.toString(),
+                    props.beforeTimetables()
+                )
+            );
+            setSelectedMinute(
+                findMinuteByNumber(
+                    props.editingNotification?.timetable_former_mins?.toString(),
+                    minuteOptions
+                )
+            );
         } else {
             setSelectedTimetable(undefined);
             setSelectedMinute(undefined);
@@ -223,7 +242,11 @@ export function NotificationConfigDialog(props: {
                                 }}
                                 options={props
                                     .beforeTimetables()
-                                    .filter(t => t.arrival_timestamp > Math.floor(Date.now()/1000))
+                                    .filter(
+                                        (t) =>
+                                            t.arrival_timestamp >
+                                            Math.floor(Date.now() / 1000)
+                                    )
                                     .map((timetable) =>
                                         timetable.id.toString()
                                     )}
