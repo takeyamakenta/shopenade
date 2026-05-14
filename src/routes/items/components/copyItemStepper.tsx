@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/carousel";
 import { hasError } from "@/libs/error/reportError";
 import { ErrorClass } from "@/libs/form/validation";
+import { useCopyItemStepAttributeStore } from "@/stores/items/copyItemStepAttributeStore";
 
 type CopyItemStepperProps = {
     currentStep: number;
@@ -31,17 +32,20 @@ type CopyItemStepperProps = {
     steps: Step[];
     errorMessage?: string;
     errors: Record<string, ErrorClass>;
+    fields: Record<string, unknown>;
 };
 
 const CopyItemStepper: Component<
     ComponentProps<"div"> & CopyItemStepperProps
 > = (props: ComponentProps<"div"> & CopyItemStepperProps) => {
+    const { copyItemStepAttributeStore, setCopyItemStepAttributeStore } = useCopyItemStepAttributeStore();
     const [local, others] = splitProps(props, [
         "currentStep",
         "setCurrentStep",
         "steps",
         "errorMessage",
         "errors",
+        "fields",
     ]);
     const currentStep = createMemo(() => local.currentStep);
     const steps = createMemo(() => local.steps);
@@ -54,6 +58,10 @@ const CopyItemStepper: Component<
             return;
         }
         local.setCurrentStep(api.selectedScrollSnap());
+        setCopyItemStepAttributeStore({
+            ...copyItemStepAttributeStore,
+            ...local.fields,
+        });
     };
 
     const [carouselApi, setCarouselApi] =

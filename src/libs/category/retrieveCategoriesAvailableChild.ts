@@ -1,20 +1,20 @@
 import { Category } from "@/@types/Category";
 import { getAuthSession } from "@/sessions/authSession";
 
-export interface RetrieveCategoryResponse {
+export interface RetrieveCategoriesAvailableChildResponse {
     success: boolean;
     error?: string;
-    data?: Category;
+    data?: Category[];
 }
 
-export const doRetrieveCategory = async (integrationAccountID: number, categoryID: string, language: string = "en"): Promise<RetrieveCategoryResponse> => {
+export const doRetrieveCategoriesAvailableChild = async (integrationAccountID: number, categoryID: string, language: string = "en"): Promise<RetrieveCategoriesAvailableChildResponse> => {
     const authSession = await getAuthSession();
     const idToken = authSession?.idToken;
     if (!idToken) {
         throw new Error("ログインしていません");
     }
     const response = await fetch(
-        `${process.env.BACKEND_URL}v1/items/shopee/categories/category/${categoryID}?integration_account_id=${integrationAccountID}&language=${language}`,
+        `${process.env.BACKEND_URL}v1/items/shopee/categories/available_child/${categoryID}?integration_account_id=${integrationAccountID}&language=${language}`,
         {
             method: "GET",
             headers: {
@@ -26,7 +26,7 @@ export const doRetrieveCategory = async (integrationAccountID: number, categoryI
     if (response.ok) {
         const result = (await response.json()) as {
             success: boolean;
-            data: Category;
+            data: Category[];
         };
         return {
             success: response.ok,

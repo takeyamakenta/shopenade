@@ -1,4 +1,4 @@
-import { Accessor, createEffect } from "solid-js";
+import { Accessor, createEffect, createSignal } from "solid-js";
 
 import { createStore } from "solid-js/store";
 
@@ -55,7 +55,7 @@ export function useForm({ errorClass }: { errorClass: string }) {
         string,
         { element: HTMLInputElement; validators: Validator[] }
     > = {};
-    const fields: Record<string, string> = {};
+    const [fields, setFields] = createSignal<Record<string, string>>({});
 
     const validate = (
         ref: HTMLInputElement,
@@ -72,23 +72,21 @@ export function useForm({ errorClass }: { errorClass: string }) {
         createEffect(() => {
             configs[ref.name] = config;
         });
-        console.log("validate", ref.name, ref.type, ref.value);
+        const currentFields = fields();
         if (ref.type === "hidden") {
-            checkValid(
-                config,
-                setErrors,
-                errors,
-                errorClass
-            )(undefined, valueAccessor());
-            fields[ref.name] = ref.value;
-            const mutationObserver = new MutationObserver((mutations) => {
-                for (const mutation of mutations) {
-                    if (mutation.type === "attributes" && mutation.attributeName === "value") {
-                        checkValid(config, setErrors, errors, errorClass)(undefined, undefined);
-                    }
+            createEffect(() => {
+                const v = valueAccessor();
+                if (v !== undefined && v !== null) {
+                    ref.value = v.toString();
                 }
+                setFields({ ...currentFields, [ref.name]: ref.value });
+                void checkValid(
+                    config,
+                    setErrors,
+                    errors,
+                    errorClass
+                )(undefined, v);
             });
-            mutationObserver.observe(ref, { attributes: true });
         }
         if (ref.type !== "hidden") {
             ref.oninput = () => {
@@ -97,7 +95,7 @@ export function useForm({ errorClass }: { errorClass: string }) {
                     setErrors({ [ref.name]: undefined });
                     if (errorClass) ref.classList.toggle(errorClass, false);
                 }
-                fields[ref.name] = ref.value;
+                setFields({ ...fields(), [ref.name]: ref.value });
                 checkValid(
                     config,
                     setErrors,
@@ -127,9 +125,9 @@ export function useForm({ errorClass }: { errorClass: string }) {
                     errored = true;
                 }
             }
-            console.log({ fields });
-            if (!errored) callback(fields);
+            console.log({ fields: fields() });
+            if (!errored) callback(fields());
         };
     };
-    return { validate, formSubmit, errors };
+    return { validate, formSubmit, errors, fields };
 }

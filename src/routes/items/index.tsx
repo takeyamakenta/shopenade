@@ -1,12 +1,14 @@
 import {
+    ChevronRightIcon,
     ChevronsUpDownIcon,
-    StoreIcon,
     CopyIcon,
     DiffIcon,
     FilesIcon,
     LinkIcon,
     MinusIcon,
     PlusIcon,
+    StoreIcon,
+    TrashIcon,
 } from "lucide-solid";
 import {
     ComponentProps,
@@ -23,6 +25,7 @@ import { Motion, Presence } from "solid-motionone";
 
 import { createAsync, query } from "@solidjs/router";
 
+import { Category } from "@/@types/Category";
 import { Item } from "@/@types/Item";
 import { ItemPackingStyle } from "@/@types/ItemPackingStyle";
 import { ItemSku } from "@/@types/ItemSku";
@@ -71,6 +74,8 @@ import { showToast } from "@/components/ui/toast";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import NavFooter from "@/layouts/NavFooter";
 import NavHeader from "@/layouts/NavHeader";
+import { retrieveCategoriesAvailableChild } from "@/libs/RPCs/category/retrieveCategoriesAvailableChild";
+import { retrieveCategoriesToRoot } from "@/libs/RPCs/category/retrieveCategoriesToRoot";
 import { getItemSku } from "@/libs/RPCs/item/getItemSku";
 import { getItems } from "@/libs/RPCs/item/getItems";
 import { mergeVariant } from "@/libs/RPCs/item/mergeVariant";
@@ -79,11 +84,13 @@ import { getShopeeShops } from "@/libs/RPCs/oauth/getShopeeShops";
 import { nationalFlags } from "@/libs/const/nationalFlags";
 import { hasError, serializeError } from "@/libs/error/reportError";
 import { ErrorClass, Validator, useForm } from "@/libs/form/validation";
+import {
+    resolveItemPackingStyle,
+    resolveItemPlatform,
+    resolveItemSku,
+} from "@/libs/item/resolve";
 import { truncateText } from "@/libs/text/truncateText";
 import CopyItemStepper from "@/routes/items/components/copyItemStepper";
-import { resolveItemPlatform, resolveItemPackingStyle, resolveItemSku } from "@/libs/item/resolve";
-import { retrieveCategory } from "@/libs/RPCs/category/retrieveCategory";
-import { Category } from "@/@types/Category";
 import { useCopyItemStepAttributeStore } from "@/stores/items/copyItemStepAttributeStore";
 
 const initData = query(async () => {
@@ -199,7 +206,9 @@ export default function Items() {
             : skus;
     });
 
-    const hashPackingStyle = (packingStyle: ItemPackingStyle | null | undefined) => {
+    const hashPackingStyle = (
+        packingStyle: ItemPackingStyle | null | undefined
+    ) => {
         if (!packingStyle) return "";
         return `${packingStyle.packing_width}x${packingStyle.packing_height}x${packingStyle.packing_length} ${packingStyle.length_unit_code} ${packingStyle.packing_weight} ${packingStyle.weight_unit_code} ${packingStyle.factor_by_base_unit} ${packingStyle.unit_code}`;
     };
@@ -381,7 +390,10 @@ export default function Items() {
         if (!selectedTopItemVariant()) {
             return undefined;
         }
-        return resolveItemPlatform(items(), selectedTopItemVariant() as ItemVariant);
+        return resolveItemPlatform(
+            items(),
+            selectedTopItemVariant() as ItemVariant
+        );
     });
 
     const [isQuantityChangeDrawerOpen, setIsQuantityChangeDrawerOpen] =
@@ -1007,23 +1019,34 @@ export default function Items() {
             description: "コピー先の店舗を選択してください",
             icon: StoreIcon,
             stepFormComponent: (props: StepFormComponentProps) => {
-                const { copyItemStepAttributeStore, setCopyItemStepAttributeStore } = useCopyItemStepAttributeStore();
+                const {
+                    copyItemStepAttributeStore,
+                    setCopyItemStepAttributeStore,
+                } = useCopyItemStepAttributeStore();
 
                 const [local, others] = splitProps(props, [
                     "currentStep",
                     "setCurrentStep",
                     "setErrors",
+                    "setFields",
                 ]);
 
-                const { formSubmit, errors, validate } = useForm({
+                const { formSubmit, errors, validate, fields } = useForm({
                     errorClass: "error",
                 });
 
                 onMount(() => {
-                    setSelectedIntegrationAccountId(Array.from(
-                        iaIdToShopMap()?.values() ?? []
-                    ).filter((shop) => shop.integration_account_id !== toCopyItemPlatform?.integration_account_id)[0]?.integration_account_id ?? null);
-                    console.log("selectedIntegrationAccountId", selectedIntegrationAccountId());
+                    setSelectedIntegrationAccountId(
+                        Array.from(iaIdToShopMap()?.values() ?? []).filter(
+                            (shop) =>
+                                shop.integration_account_id !==
+                                toCopyItemPlatform?.integration_account_id
+                        )[0]?.integration_account_id ?? null
+                    );
+                    console.log(
+                        "selectedIntegrationAccountId",
+                        selectedIntegrationAccountId()
+                    );
                 });
 
                 const handleNext = (fields: Record<string, unknown>) => {
@@ -1031,7 +1054,6 @@ export default function Items() {
                         local.setErrors(errors);
                         return;
                     }
-                    console.log("fields", fields);
                     setCopyItemStepAttributeStore({
                         ...copyItemStepAttributeStore,
                         ...fields,
@@ -1041,7 +1063,7 @@ export default function Items() {
 
                 const validators: Validator[] = [
                     async (element: HTMLInputElement) => {
-                        return element.value === "1"
+                        return element.value === ""
                             ? "Invalid value"
                             : undefined;
                     },
@@ -1049,6 +1071,10 @@ export default function Items() {
 
                 createEffect(() => {
                     local.setErrors(errors);
+                });
+
+                createEffect(() => {
+                    local.setFields(fields());
                 });
 
                 const [
@@ -1077,7 +1103,10 @@ export default function Items() {
                     );
                 });
 
-                const toCopyItemPlatform = resolveItemPlatform(items(), toCopyItemVariant() as ItemVariant);
+                const toCopyItemPlatform = resolveItemPlatform(
+                    items(),
+                    toCopyItemVariant() as ItemVariant
+                );
 
                 return (
                     <form
@@ -1085,7 +1114,7 @@ export default function Items() {
                         // @ts-expect-error formSubmit is not a valid prop
                         use:formSubmit={handleNext}
                     >
-                        <div class="mt-4 relative flex h-[32px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
+                        <div class="relative mt-4 flex h-[32px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
                             <Carousel
                                 orientation="vertical"
                                 setApi={setIntegrationAccountIdCarouselApi}
@@ -1094,11 +1123,25 @@ export default function Items() {
                                     <For
                                         each={Array.from(
                                             iaIdToShopMap()?.values() ?? []
-                                        ).filter((shop) => shop.integration_account_id !== toCopyItemPlatform?.integration_account_id)}
+                                        ).filter(
+                                            (shop) =>
+                                                shop.integration_account_id !==
+                                                toCopyItemPlatform?.integration_account_id
+                                        )}
                                     >
                                         {(shop) => (
                                             <CarouselItem class="flex h-[32px] w-full flex-row items-center justify-center">
-                                                <p class="text-md text-nowrap"> {nationalFlags[shop.region as keyof typeof nationalFlags] ?? "❓"} {truncateText(shop.shop_name ?? "unknown shop", 10)}</p>
+                                                <p class="text-md text-nowrap">
+                                                    {" "}
+                                                    {nationalFlags[
+                                                        shop.region as keyof typeof nationalFlags
+                                                    ] ?? "❓"}{" "}
+                                                    {truncateText(
+                                                        shop.shop_name ??
+                                                            "unknown shop",
+                                                        10
+                                                    )}
+                                                </p>
                                             </CarouselItem>
                                         )}
                                     </For>
@@ -1117,7 +1160,10 @@ export default function Items() {
                         </div>
                         <input
                             // @ts-expect-error this is a solid-js componen
-                            use:validate={[validators, () => undefined]}
+                            use:validate={[
+                                validators,
+                                () => selectedIntegrationAccountId(),
+                            ]}
                             class="w-full"
                             name="integration_account_id"
                             type="hidden"
@@ -1134,10 +1180,14 @@ export default function Items() {
         },
         {
             title: "カテゴリの確認＆再選択",
-            description: "商品のカテゴリを確認し、変更の必要がある場合は再選択してください",
+            description:
+                "商品のカテゴリを確認し、変更の必要がある場合は再選択してください(コピー先店舗の国では、コピー元と同一のカテゴリを選べない可能性があります)",
             icon: CopyIcon,
             stepFormComponent: (props: StepFormComponentProps) => {
-                const { copyItemStepAttributeStore, setCopyItemStepAttributeStore } = useCopyItemStepAttributeStore();
+                const {
+                    copyItemStepAttributeStore,
+                    setCopyItemStepAttributeStore,
+                } = useCopyItemStepAttributeStore();
 
                 const [local, others] = splitProps(props, [
                     "currentStep",
@@ -1167,30 +1217,139 @@ export default function Items() {
 
                 const validators: Validator[] = [
                     async (element: HTMLInputElement) => {
-                        return element.value === "1"
+                        return element.value === ""
                             ? "Invalid value"
                             : undefined;
                     },
                 ];
 
-                const [currentCategory, setCurrentCategory] = createSignal<Category | null>(null);
-                const [targetCategory, setTargetCategory] = createSignal<Category | null>(null);
+                const hasChildrenValidators: Validator[] = [
+                    async (element: HTMLInputElement) => {
+                        console.log("element", element.value);
+                        return element.value === "1"
+                            ? "末端レベルまで選択が必要です"
+                            : undefined;
+                    },
+                ];
+
+                const [currrentCategoriesToRoot, setCurrentCategoriesToRoot] =
+                    createSignal<Category[] | null>(null);
+                const [targetCategoriesToRoot, setTargetCategoriesToRoot] =
+                    createSignal<Category[] | null>(null);
+                const [
+                    availableTargetCategoriesChild,
+                    setAvailableTargetCategoriesChild,
+                ] = createSignal<Category[] | null>(null);
+
+                const lastTargetCategory = createMemo(() => {
+                    if (!targetCategoriesToRoot()) return null;
+                    return (
+                        targetCategoriesToRoot()?.[
+                            (targetCategoriesToRoot()?.length ?? 0) - 1
+                        ] ?? null
+                    );
+                });
+
+                createAsync(async () => {
+                    console.log("lastTargetCategory", lastTargetCategory());
+                    if (
+                        lastTargetCategory()?.has_children ||
+                        lastTargetCategory() === null
+                    ) {
+                        const { success, data } =
+                            await retrieveCategoriesAvailableChild(
+                                copyItemStepAttributeStore.integration_account_id as number,
+                                lastTargetCategory()?.category_id?.toString() ??
+                                    "0",
+                                "en"
+                            );
+                        if (success && data) {
+                            setAvailableTargetCategoriesChild(data);
+                        } else {
+                            setAvailableTargetCategoriesChild(null);
+                        }
+                    } else {
+                        setAvailableTargetCategoriesChild(null);
+                    }
+                });
+
+                const toCopyItemPlatform = resolveItemPlatform(
+                    items(),
+                    toCopyItemVariant() as ItemVariant
+                );
 
                 const handleRetrieveCategory = async () => {
                     try {
-                        const toCopyItemPlatform = resolveItemPlatform(items(), toCopyItemVariant() as ItemVariant);
-                        if (!toCopyItemPlatform || !toCopyItemPlatform.shopee_item?.category_id) throw new Error("To copy item platform or category not found");
-                        const { success, data } = await retrieveCategory(toCopyItemPlatform.integration_account_id, toCopyItemPlatform.shopee_item?.category_id as string, "en");
+                        if (
+                            !toCopyItemPlatform ||
+                            !toCopyItemPlatform.shopee_item?.category_id
+                        )
+                            throw new Error(
+                                "To copy item platform or category not found"
+                            );
+                        const { success, data } =
+                            await retrieveCategoriesToRoot(
+                                toCopyItemPlatform.integration_account_id,
+                                toCopyItemPlatform.shopee_item
+                                    ?.category_id as string,
+                                "en"
+                            );
                         if (success && data) {
-                            setCurrentCategory(data);
+                            setCurrentCategoriesToRoot(data);
+                        } else {
+                            throw new Error(
+                                "Failed to retrieve categories to root"
+                            );
                         }
 
-                        console.log(copyItemStepAttributeStore);
-                        const targetIntegrationAccountId = copyItemStepAttributeStore.integration_account_id as number;
-                        if (!targetIntegrationAccountId) throw new Error("Target integration account id not found");
-                        const { success: targetSuccess, data: targetData } = await retrieveCategory(targetIntegrationAccountId, toCopyItemPlatform.shopee_item?.category_id as string, "en");
-                        if (targetSuccess && targetData) {
-                            setTargetCategory(targetData);
+                        const targetIntegrationAccountId =
+                            copyItemStepAttributeStore.integration_account_id as number;
+                        if (!targetIntegrationAccountId)
+                            throw new Error(
+                                "Target integration account id not found"
+                            );
+                        const {
+                            success: targetToRootSuccess,
+                            data: targetToRootData,
+                        } = await retrieveCategoriesToRoot(
+                            targetIntegrationAccountId,
+                            toCopyItemPlatform.shopee_item
+                                ?.category_id as string,
+                            "en"
+                        );
+                        if (
+                            targetToRootSuccess &&
+                            (targetToRootData?.length ?? 0) > 0
+                        ) {
+                            setTargetCategoriesToRoot(
+                                targetToRootData as Category[]
+                            );
+                        } else {
+                            setTargetCategoriesToRoot(null);
+                            let currentCategoryIndex =
+                                currrentCategoriesToRoot()?.length ?? 0 - 2;
+                            while (currentCategoryIndex >= 0) {
+                                console.log(
+                                    "currentCategoryIndex",
+                                    currentCategoryIndex
+                                );
+                                const { success, data } =
+                                    await retrieveCategoriesToRoot(
+                                        targetIntegrationAccountId,
+                                        currrentCategoriesToRoot()?.[
+                                            currentCategoryIndex
+                                        ]?.parent_category_id?.toString() ??
+                                            "0",
+                                        "en"
+                                    );
+                                if (success && data) {
+                                    setTargetCategoriesToRoot(data);
+                                    break;
+                                } else {
+                                    setTargetCategoriesToRoot(null);
+                                }
+                                currentCategoryIndex--;
+                            }
                         }
                     } catch (error) {
                         console.error(error);
@@ -1201,13 +1360,194 @@ export default function Items() {
                     await handleRetrieveCategory();
                 });
 
+                const handleSelectCategory = (category: Category) => {
+                    setAvailableTargetCategoriesChild(null);
+                    setTargetCategoriesToRoot([
+                        ...(targetCategoriesToRoot() ?? []),
+                        category,
+                    ]);
+                };
 
-                const [category, setCategory] = createSignal<Category | null>(null);
+                const handleRemoveTargetCategoryAfter = (
+                    category: Category
+                ) => {
+                    const index = targetCategoriesToRoot()?.findIndex(
+                        (c) => c === category
+                    );
+                    console.log("index", index);
+                    if (index !== undefined && index !== null) {
+                        setTargetCategoriesToRoot([
+                            ...(targetCategoriesToRoot() ?? []).filter(
+                                (_, i) => i < index
+                            ),
+                        ]);
+                    }
+                };
 
                 return (
-                    <>
-                        <p>Copy Item2</p>
-                    </>
+                    <div class="flex flex-col items-center justify-center gap-2 p-2 pb-4">
+                        <div class="flex flex-row items-center justify-center gap-1">
+                            <p>
+                                From{" "}
+                                {nationalFlags[
+                                    iaIdToShopMap()?.get(
+                                        toCopyItemPlatform?.integration_account_id as number
+                                    )?.region as keyof typeof nationalFlags
+                                ] ?? "❓"}{" "}
+                                :
+                            </p>
+                            <For each={currrentCategoriesToRoot()}>
+                                {(category, index) => (
+                                    <>
+                                        <p>{category.original_category_name}</p>
+                                        <Show
+                                            when={
+                                                index() !==
+                                                (currrentCategoriesToRoot()
+                                                    ?.length ?? 0) -
+                                                    1
+                                            }
+                                        >
+                                            <ChevronRightIcon class="size-4" />
+                                        </Show>
+                                    </>
+                                )}
+                            </For>
+                        </div>
+                        <div class="flex flex-row items-center justify-center gap-1">
+                            <p class="text-nowrap text-sm">
+                                To{" "}
+                                {nationalFlags[
+                                    iaIdToShopMap()?.get(
+                                        parseInt(
+                                            copyItemStepAttributeStore.integration_account_id as string
+                                        ) as number
+                                    )?.region as keyof typeof nationalFlags
+                                ] ?? "❓"}{" "}
+                                :
+                            </p>
+                            <For each={targetCategoriesToRoot()}>
+                                {(category, index) => (
+                                    <>
+                                        <p class="flex flex-row items-center justify-center gap-1">
+                                            <Button
+                                                size="xs"
+                                                onClick={() =>
+                                                    handleRemoveTargetCategoryAfter(
+                                                        category
+                                                    )
+                                                }
+                                            >
+                                                <TrashIcon class="size-1 cursor-pointer" />
+                                            </Button>
+                                            {category.display_category_name}
+                                            <Show
+                                                when={
+                                                    index() !==
+                                                    (targetCategoriesToRoot()
+                                                        ?.length ?? 0) -
+                                                        1
+                                                }
+                                            >
+                                                <ChevronRightIcon class="size-4" />
+                                            </Show>
+                                        </p>
+                                    </>
+                                )}
+                            </For>
+                        </div>
+                        <form
+                            class="flex w-full flex-col items-center gap-4"
+                            // @ts-expect-error formSubmit is not a valid prop
+                            use:formSubmit={handleNext}
+                        >
+                            <Show
+                                when={
+                                    lastTargetCategory() === null ||
+                                    lastTargetCategory()?.has_children
+                                }
+                            >
+                                <div class="relative mt-4 flex h-[48px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
+                                    <Carousel orientation="vertical">
+                                        <CarouselContent class="h-[64px] w-full">
+                                            <For
+                                                each={
+                                                    availableTargetCategoriesChild() ??
+                                                    []
+                                                }
+                                            >
+                                                {(category) => (
+                                                    <CarouselItem class="flex h-[48px] w-full flex-row items-center justify-center gap-4">
+                                                        <p class="text-md text-nowrap">
+                                                            {" "}
+                                                            {
+                                                                category.display_category_name
+                                                            }
+                                                        </p>
+                                                        <p>
+                                                            <Button
+                                                                onClick={() =>
+                                                                    handleSelectCategory(
+                                                                        category
+                                                                    )
+                                                                }
+                                                                variant="primary"
+                                                                size="xs"
+                                                            >
+                                                                Select
+                                                            </Button>
+                                                        </p>
+                                                    </CarouselItem>
+                                                )}
+                                            </For>
+                                        </CarouselContent>
+                                        <Show
+                                            when={
+                                                (Object.values(
+                                                    availableTargetCategoriesChild() ??
+                                                        {}
+                                                ).length ?? 0) > 1
+                                            }
+                                        >
+                                            <p class="absolute right-0 top-[16px]">
+                                                <ChevronsUpDownIcon class="size-4" />
+                                            </p>
+                                        </Show>
+                                    </Carousel>
+                                </div>
+                            </Show>
+                            <input
+                                // @ts-expect-error this is a solid-js componen
+                                use:validate={[
+                                    validators,
+                                    () => lastTargetCategory()?.category_id,
+                                ]}
+                                class="w-full"
+                                name="target_category_id"
+                                type="hidden"
+                                value={
+                                    lastTargetCategory()?.category_id?.toString() ??
+                                    ""
+                                }
+                                required
+                            />
+                            <input
+                                // @ts-expect-error this is a solid-js componen
+                                use:validate={[
+                                    hasChildrenValidators,
+                                    () => lastTargetCategory()?.has_children ? "1" : "0",
+                                ]}
+                                class="w-full"
+                                name="target_category_id"
+                                type="hidden"
+                                value={
+                                    lastTargetCategory()?.has_children ? "1" : "0"
+                                }
+                                required
+                            />
+                            <Button type="submit">Next</Button>
+                        </form>
+                    </div>
                 );
             },
         },
@@ -1217,34 +1557,64 @@ export default function Items() {
         return copyItemSteps()[copyItemCurrentStep()];
     });
 
-    const [copyItemStepAttributes, setCopyItemStepAttributes] = createSignal<
-        Record<string, unknown>
-    >({});
-
     const [copyItemStepErrors, setCopyItemStepErrors] = createSignal<
         Record<string, ErrorClass>
     >({});
 
     const CopyItemTopPanel = () => {
         return (
-            <OverlaySheetBody class="h-fit w-full flex-col gap-2 text-sm items-center justify-center">
+            <OverlaySheetBody class="h-fit w-full flex-col items-center justify-center gap-2 text-sm">
                 <div class="justify-satrt flex h-fit flex-row items-center justify-between gap-4">
                     <div class="flex h-full w-2/3 flex-col items-start justify-center gap-1">
-                        <p class="text-sm">{"📛"} {resolveItemPlatform(items(), toCopyItemVariant() as ItemVariant)?.shopee_item?.item_name}</p>
-                        <p class="text-sm">{"🍬"} {resolveItemSku(items(), toCopyItemVariant() as ItemVariant)?.hash_code}</p>
-                        <p class="text-sm">{"📦"} {hashPackingStyle(resolveItemPackingStyle(items(), toCopyItemVariant() as ItemVariant) as ItemPackingStyle)}</p>
+                        <p class="text-sm">
+                            {"📛"}{" "}
+                            {
+                                resolveItemPlatform(
+                                    items(),
+                                    toCopyItemVariant() as ItemVariant
+                                )?.shopee_item?.item_name
+                            }
+                        </p>
+                        <p class="text-sm">
+                            {"🍬"}{" "}
+                            {
+                                resolveItemSku(
+                                    items(),
+                                    toCopyItemVariant() as ItemVariant
+                                )?.hash_code
+                            }
+                        </p>
+                        <p class="text-sm">
+                            {"📦"}{" "}
+                            {hashPackingStyle(
+                                resolveItemPackingStyle(
+                                    items(),
+                                    toCopyItemVariant() as ItemVariant
+                                ) as ItemPackingStyle
+                            )}
+                        </p>
                     </div>
                     <div class="flex h-full w-1/3 flex-col items-start justify-center gap-1">
-                        <ItemSkuImageCarousel 
-                            class="max-h-[64px] max-w-[64px] w-full"
-                            itemSku={resolveItemSku(items(), toCopyItemVariant() as ItemVariant)}
+                        <ItemSkuImageCarousel
+                            class="max-h-[64px] w-full max-w-[64px]"
+                            itemSku={resolveItemSku(
+                                items(),
+                                toCopyItemVariant() as ItemVariant
+                            )}
                         />
                     </div>
                 </div>
-                <p class="w-full text-right text-nowrap flex flex-row items-center justify-end gap-1">を別店舗にコピーします<CopyIcon class="size-4" /></p>
+                <p class="flex w-full flex-row items-center justify-end gap-1 text-nowrap text-right">
+                    を別店舗にコピーします
+                    <CopyIcon class="size-4" />
+                </p>
             </OverlaySheetBody>
         );
     };
+
+    const [copyItemFields, setCopyItemFields] = createSignal<
+        Record<string, unknown>
+    >({});
 
     const ItemsSection = () => {
         return (
@@ -1494,6 +1864,7 @@ export default function Items() {
                         topChildren={<CopyItemTopPanel />}
                         centerChildren={
                             <CopyItemStepper
+                                fields={copyItemFields()}
                                 currentStep={copyItemCurrentStep()}
                                 setCurrentStep={setCopyItemCurrentStep}
                                 steps={copyItemSteps()}
@@ -1506,11 +1877,8 @@ export default function Items() {
                                     {currentCopyItemStep()?.stepFormComponent({
                                         currentStep: copyItemCurrentStep(),
                                         setCurrentStep: setCopyItemCurrentStep,
-                                        stepAttributes:
-                                            copyItemStepAttributes(),
-                                        setStepAttributes:
-                                            setCopyItemStepAttributes,
                                         setErrors: setCopyItemStepErrors,
+                                        setFields: setCopyItemFields,
                                     })}
                                 </Show>
                                 <OverlaySheetBottomClose

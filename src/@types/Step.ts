@@ -7,6 +7,7 @@ export type StepFormComponentProps = {
     currentStep: number;
     setCurrentStep: (step: number) => void;
     setErrors: (errors: Record<string, ErrorClass>) => void;
+    setFields: (fields: Record<string, unknown>) => void;
 };
 
 export type Step = {
@@ -17,5 +18,6 @@ export type Step = {
         currentStep: number;
         setCurrentStep: (step: number) => void;
         setErrors: (errors: Record<string, ErrorClass>) => void;
+        setFields: (fields: Record<string, unknown>) => void;
     }) => JSX.Element;
 };
