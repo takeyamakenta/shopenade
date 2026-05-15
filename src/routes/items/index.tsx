@@ -25,6 +25,10 @@ import { Motion, Presence } from "solid-motionone";
 
 import { createAsync, query } from "@solidjs/router";
 
+import {
+    AttributeTreeCategory,
+    AttributeValue,
+} from "@/@types/AttributeTreeCategory";
 import { Category } from "@/@types/Category";
 import { Item } from "@/@types/Item";
 import { ItemPackingStyle } from "@/@types/ItemPackingStyle";
@@ -64,6 +68,7 @@ import {
     OverlaySheetHeader,
     OverlaySheetTitle,
 } from "@/components/ui/overlay-sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
     Switch,
     SwitchControl,
@@ -74,6 +79,7 @@ import { showToast } from "@/components/ui/toast";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import NavFooter from "@/layouts/NavFooter";
 import NavHeader from "@/layouts/NavHeader";
+import { retrieveAttributeTree } from "@/libs/RPCs/category/retrieveAttributeTree";
 import { retrieveCategoriesAvailableChild } from "@/libs/RPCs/category/retrieveCategoriesAvailableChild";
 import { retrieveCategoriesToRoot } from "@/libs/RPCs/category/retrieveCategoriesToRoot";
 import { getItemSku } from "@/libs/RPCs/item/getItemSku";
@@ -91,7 +97,10 @@ import {
 } from "@/libs/item/resolve";
 import { truncateText } from "@/libs/text/truncateText";
 import CopyItemStepper from "@/routes/items/components/copyItemStepper";
+import { useIsLoadingStore } from "@/stores/isLoadingStore";
 import { useCopyItemStepAttributeStore } from "@/stores/items/copyItemStepAttributeStore";
+
+import { ShopeeAttributeInput } from "./components/shopeeAttributeInput";
 
 const initData = query(async () => {
     "use server";
@@ -137,19 +146,12 @@ export default function Items() {
     const [isTopPanelOpen, setIsTopPanelOpen] = createSignal(false);
     const [isBottomPanelOpen, setIsBottomPanelOpen] = createSignal(false);
 
-    const toggleTopPanel = () => {
-        setIsTopPanelOpen(!isTopPanelOpen());
-    };
-
     const closeTopPanel = () => {
         setSelectedTopItem(null);
         setSelectedTopItemPackingStyle(null);
         setSelectedTopItemSku(null);
         setSelectedTopItemVariantID(null);
         setIsTopPanelOpen(false);
-    };
-    const toggleBottomPanel = () => {
-        setIsBottomPanelOpen(!isBottomPanelOpen());
     };
 
     const closeBottomPanel = () => {
@@ -1011,9 +1013,7 @@ export default function Items() {
 
     const [copyItemCurrentStep, setCopyItemCurrentStep] =
         createSignal<number>(0);
-    const [copyItemErrorMessage, setCopyItemErrorMessage] =
-        createSignal<string>("");
-    const [copyItemSteps, setCopyItemSteps] = createSignal<Step[]>([
+    const [copyItemSteps] = createSignal<Step[]>([
         {
             title: "店舗選択",
             description: "コピー先の店舗を選択してください",
@@ -1024,7 +1024,7 @@ export default function Items() {
                     setCopyItemStepAttributeStore,
                 } = useCopyItemStepAttributeStore();
 
-                const [local, others] = splitProps(props, [
+                const [local] = splitProps(props, [
                     "currentStep",
                     "setCurrentStep",
                     "setErrors",
@@ -1184,12 +1184,14 @@ export default function Items() {
                 "商品のカテゴリを確認し、変更の必要がある場合は再選択してください(コピー先店舗の国では、コピー元と同一のカテゴリを選べない可能性があります)",
             icon: CopyIcon,
             stepFormComponent: (props: StepFormComponentProps) => {
+                const { isLoadingStore, setIsLoadingStore } =
+                    useIsLoadingStore();
                 const {
                     copyItemStepAttributeStore,
                     setCopyItemStepAttributeStore,
                 } = useCopyItemStepAttributeStore();
 
-                const [local, others] = splitProps(props, [
+                const [local] = splitProps(props, [
                     "currentStep",
                     "setCurrentStep",
                     "setErrors",
@@ -1204,6 +1206,7 @@ export default function Items() {
                 });
 
                 const handleNext = (fields: Record<string, unknown>) => {
+                    console.log("fields", fields);
                     if (hasError(errors)) {
                         local.setErrors(errors);
                         return;
@@ -1251,22 +1254,28 @@ export default function Items() {
                 });
 
                 createAsync(async () => {
-                    console.log("lastTargetCategory", lastTargetCategory());
                     if (
                         lastTargetCategory()?.has_children ||
                         lastTargetCategory() === null
                     ) {
-                        const { success, data } =
-                            await retrieveCategoriesAvailableChild(
-                                copyItemStepAttributeStore.integration_account_id as number,
-                                lastTargetCategory()?.category_id?.toString() ??
-                                    "0",
-                                "en"
-                            );
-                        if (success && data) {
-                            setAvailableTargetCategoriesChild(data);
-                        } else {
-                            setAvailableTargetCategoriesChild(null);
+                        try {
+                            setIsLoadingStore("isLoading", true);
+                            const { success, data } =
+                                await retrieveCategoriesAvailableChild(
+                                    copyItemStepAttributeStore.integration_account_id as number,
+                                    lastTargetCategory()?.category_id?.toString() ??
+                                        "0",
+                                    "en"
+                                );
+                            if (success && data) {
+                                setAvailableTargetCategoriesChild(data);
+                            } else {
+                                setAvailableTargetCategoriesChild(null);
+                            }
+                        } catch (error) {
+                            console.error(error);
+                        } finally {
+                            setIsLoadingStore("isLoading", false);
                         }
                     } else {
                         setAvailableTargetCategoriesChild(null);
@@ -1385,8 +1394,8 @@ export default function Items() {
                 };
 
                 return (
-                    <div class="flex flex-col items-center justify-center gap-2 p-2 pb-4">
-                        <div class="flex flex-row items-center justify-center gap-1">
+                    <div class="items-left flex flex-col justify-start gap-2 p-2 px-8 pb-4">
+                        <div class="flex flex-row items-center justify-start gap-1">
                             <p>
                                 From{" "}
                                 {nationalFlags[
@@ -1414,7 +1423,7 @@ export default function Items() {
                                 )}
                             </For>
                         </div>
-                        <div class="flex flex-row items-center justify-center gap-1">
+                        <div class="flex flex-row items-center justify-start gap-1">
                             <p class="text-nowrap text-sm">
                                 To{" "}
                                 {nationalFlags[
@@ -1463,8 +1472,24 @@ export default function Items() {
                         >
                             <Show
                                 when={
-                                    lastTargetCategory() === null ||
-                                    lastTargetCategory()?.has_children
+                                    lastTargetCategory() !== null &&
+                                    !lastTargetCategory()?.has_children
+                                }
+                            >
+                                <div class="relative mt-4 flex h-[48px] w-full items-center justify-center bg-gray-400">
+                                    <p class="text-sm">選択済み</p>
+                                </div>
+                            </Show>
+                            <Show when={isLoadingStore.isLoading}>
+                                <div class="relative mt-4 flex h-[48px] w-full">
+                                    <Skeleton class="h-[48px] w-full" />
+                                </div>
+                            </Show>
+                            <Show
+                                when={
+                                    !isLoadingStore.isLoading &&
+                                    (lastTargetCategory() === null ||
+                                        lastTargetCategory()?.has_children)
                                 }
                             >
                                 <div class="relative mt-4 flex h-[48px] w-full flex-col gap-1 overflow-hidden text-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-gradient-to-b before:from-black/20 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-1 after:bg-gradient-to-t after:from-black/20 after:to-transparent after:content-['']">
@@ -1535,19 +1560,175 @@ export default function Items() {
                                 // @ts-expect-error this is a solid-js componen
                                 use:validate={[
                                     hasChildrenValidators,
-                                    () => lastTargetCategory()?.has_children ? "1" : "0",
+                                    () =>
+                                        lastTargetCategory()?.has_children
+                                            ? "1"
+                                            : "0",
                                 ]}
                                 class="w-full"
-                                name="target_category_id"
+                                name="target_category_id_has_children"
                                 type="hidden"
                                 value={
-                                    lastTargetCategory()?.has_children ? "1" : "0"
+                                    lastTargetCategory()?.has_children
+                                        ? "1"
+                                        : "0"
                                 }
                                 required
                             />
-                            <Button type="submit">Next</Button>
+                            <Button
+                                type="submit"
+                                disabled={
+                                    isLoadingStore.isLoading || hasError(errors)
+                                }
+                            >
+                                Next
+                            </Button>
                         </form>
                     </div>
+                );
+            },
+        },
+        {
+            title: "属性情報の確認＆再入力",
+            description:
+                "商品の属性情報を確認し、変更の必要がある場合は再入力してください",
+            icon: CopyIcon,
+            stepFormComponent: (props: StepFormComponentProps) => {
+                const { isLoadingStore } = useIsLoadingStore();
+                const {
+                    copyItemStepAttributeStore,
+                    setCopyItemStepAttributeStore,
+                } = useCopyItemStepAttributeStore();
+
+                const [local] = splitProps(props, [
+                    "currentStep",
+                    "setCurrentStep",
+                    "setErrors",
+                ]);
+
+                const [attributeTreeCategory, setAttributeTreeCategory] =
+                    createSignal<AttributeTreeCategory | null>(null);
+
+                createEffect(() => {
+                    local.setErrors(errors);
+                });
+
+                const handleNext = (fields: Record<string, unknown>) => {
+                    if (hasError(errors)) {
+                        local.setErrors(errors);
+                        return;
+                    }
+                    setCopyItemStepAttributeStore({
+                        ...copyItemStepAttributeStore,
+                        ...fields,
+                    });
+                    local.setCurrentStep(local.currentStep + 1);
+                };
+
+                const handleRetrieveAttributeTree = async () => {
+                    console.log(
+                        "copyItemStepAttributeStore.target_category_id",
+                        copyItemStepAttributeStore
+                    );
+                    try {
+                        const { success, data } = await retrieveAttributeTree(
+                            copyItemStepAttributeStore.integration_account_id as number,
+                            copyItemStepAttributeStore.target_category_id as string,
+                            "en"
+                        );
+                        if (success && data) {
+                            setAttributeTreeCategory(data);
+                        } else {
+                            setAttributeTreeCategory(null);
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    }
+                };
+
+                onMount(async () => {
+                    await handleRetrieveAttributeTree();
+                });
+
+                const [attributeValues, setAttributeValues] = createSignal<
+                    Record<
+                        number,
+                        | string
+                        | Partial<AttributeValue>
+                        | Partial<AttributeValue>[]
+                    >
+                >({});
+
+                const { formSubmit, errors, validate } = useForm({
+                    errorClass: "error",
+                });
+
+                return (
+                    <form
+                        class="flex w-full flex-col items-center gap-4"
+                        // @ts-expect-error formSubmit is not a valid prop
+                        use:formSubmit={handleNext}
+                    >
+                        <div class="flex w-full flex-col items-center justify-start gap-2 p-2 px-8 pb-4">
+                            <For
+                                each={
+                                    attributeTreeCategory()?.attribute_tree ??
+                                    []
+                                }
+                            >
+                                {(attributeNode) => (
+                                    <ShopeeAttributeInput
+                                        class="w-full"
+                                        validate={validate}
+                                        Name={attributeNode.name}
+                                        AttributeId={attributeNode.attribute_id}
+                                        Mandatory={attributeNode.mandatory}
+                                        InputType={
+                                            attributeNode.attribute_info
+                                                .input_type
+                                        }
+                                        InputValidationType={
+                                            attributeNode.attribute_info
+                                                .input_validation_type
+                                        }
+                                        FormatType={
+                                            attributeNode.attribute_info
+                                                .format_type
+                                        }
+                                        DateFormatType={
+                                            attributeNode.attribute_info
+                                                .date_format_type
+                                        }
+                                        AttributeValueList={
+                                            attributeNode.attribute_value_list ?? []
+                                        }
+                                        setValue={(value) =>
+                                            setAttributeValues({
+                                                ...attributeValues(),
+                                                [attributeNode.attribute_id]:
+                                                    value,
+                                            })
+                                        }
+                                        value={
+                                            attributeValues()[
+                                                attributeNode.attribute_id
+                                            ]
+                                        }
+                                        setErrors={local.setErrors}
+                                        errors={errors}
+                                    />
+                                )}
+                            </For>
+                            <Button
+                                type="submit"
+                                disabled={
+                                    isLoadingStore.isLoading || hasError(errors)
+                                }
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </form>
                 );
             },
         },

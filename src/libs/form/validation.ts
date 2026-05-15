@@ -1,4 +1,4 @@
-import { Accessor, createEffect, createSignal } from "solid-js";
+import { Accessor, createEffect, createSignal, untrack } from "solid-js";
 
 import { createStore } from "solid-js/store";
 
@@ -72,14 +72,14 @@ export function useForm({ errorClass }: { errorClass: string }) {
         createEffect(() => {
             configs[ref.name] = config;
         });
-        const currentFields = fields();
         if (ref.type === "hidden") {
             createEffect(() => {
                 const v = valueAccessor();
                 if (v !== undefined && v !== null) {
                     ref.value = v.toString();
                 }
-                setFields({ ...currentFields, [ref.name]: ref.value });
+                // untrack で fields の依存購読を避け、setFields による再実行ループを防ぐ
+                setFields({ ...untrack(fields), [ref.name]: ref.value });
                 void checkValid(
                     config,
                     setErrors,
