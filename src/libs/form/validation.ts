@@ -103,6 +103,20 @@ export function useForm({ errorClass }: { errorClass: string }) {
                     errorClass
                 )(undefined, ref.value);
             };
+            createEffect(() => {
+                const v = valueAccessor();
+                if (v !== undefined && v !== null) {
+                    ref.value = v.toString();
+                }
+                // untrack で fields の依存購読を避け、setFields による再実行ループを防ぐ
+                setFields({ ...untrack(fields), [ref.name]: ref.value });
+                void checkValid(
+                    config,
+                    setErrors,
+                    errors,
+                    errorClass
+                )(undefined, v);
+            });
         }
     };
 
@@ -129,5 +143,5 @@ export function useForm({ errorClass }: { errorClass: string }) {
             if (!errored) callback(fields());
         };
     };
-    return { validate, formSubmit, errors, fields };
+    return { validate, formSubmit, errors, fields, setFields, setErrors };
 }

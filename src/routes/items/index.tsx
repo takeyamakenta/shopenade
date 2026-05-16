@@ -1656,10 +1656,11 @@ export default function Items() {
                         | string
                         | Partial<AttributeValue>
                         | Partial<AttributeValue>[]
+                        | null
                     >
                 >({});
 
-                const { formSubmit, errors, validate } = useForm({
+                const { formSubmit, errors, validate, setErrors } = useForm({
                     errorClass: "error",
                 });
 
@@ -1705,17 +1706,162 @@ export default function Items() {
                                         setValue={(value) =>
                                             setAttributeValues({
                                                 ...attributeValues(),
-                                                [attributeNode.attribute_id]:
-                                                    value,
+                                                [attributeNode.attribute_id]: value,
                                             })
                                         }
                                         value={
                                             attributeValues()[
                                                 attributeNode.attribute_id
-                                            ]
+                                            ] ?? undefined
                                         }
-                                        setErrors={local.setErrors}
-                                        errors={errors}
+                                        error={errors[attributeNode?.attribute_id?.toString()] as string | undefined ?? undefined}
+                                        setError={(error) => setErrors({ [attributeNode?.attribute_id?.toString()]: error })}
+                                        AttributeUnitList={attributeNode.attribute_info.attribute_unit_list}
+                                    />
+                                )}
+                            </For>
+                            <Button
+                                type="submit"
+                                disabled={
+                                    isLoadingStore.isLoading || hasError(errors)
+                                }
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </form>
+                );
+            },
+        },
+        {
+            title: "写真・動画の確認、再選択",
+            description:
+                "商品の写真・動画を確認し、変更の必要がある場合は再選択してください",
+            icon: CopyIcon,
+            stepFormComponent: (props: StepFormComponentProps) => {
+                const { isLoadingStore } = useIsLoadingStore();
+                const {
+                    copyItemStepAttributeStore,
+                    setCopyItemStepAttributeStore,
+                } = useCopyItemStepAttributeStore();
+
+                const [local] = splitProps(props, [
+                    "currentStep",
+                    "setCurrentStep",
+                    "setErrors",
+                ]);
+
+                const [attributeTreeCategory, setAttributeTreeCategory] =
+                    createSignal<AttributeTreeCategory | null>(null);
+
+                createEffect(() => {
+                    local.setErrors(errors);
+                });
+
+                const handleNext = (fields: Record<string, unknown>) => {
+                    if (hasError(errors)) {
+                        local.setErrors(errors);
+                        return;
+                    }
+                    setCopyItemStepAttributeStore({
+                        ...copyItemStepAttributeStore,
+                        ...fields,
+                    });
+                    local.setCurrentStep(local.currentStep + 1);
+                };
+
+                const handleRetrieveAttributeTree = async () => {
+                    console.log(
+                        "copyItemStepAttributeStore.target_category_id",
+                        copyItemStepAttributeStore
+                    );
+                    try {
+                        const { success, data } = await retrieveAttributeTree(
+                            copyItemStepAttributeStore.integration_account_id as number,
+                            copyItemStepAttributeStore.target_category_id as string,
+                            "en"
+                        );
+                        if (success && data) {
+                            setAttributeTreeCategory(data);
+                        } else {
+                            setAttributeTreeCategory(null);
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    }
+                };
+
+                onMount(async () => {
+                    await handleRetrieveAttributeTree();
+                });
+
+                const [attributeValues, setAttributeValues] = createSignal<
+                    Record<
+                        number,
+                        | string
+                        | Partial<AttributeValue>
+                        | Partial<AttributeValue>[]
+                        | null
+                    >
+                >({});
+
+                const { formSubmit, errors, validate, setErrors } = useForm({
+                    errorClass: "error",
+                });
+
+                return (
+                    <form
+                        class="flex w-full flex-col items-center gap-4"
+                        // @ts-expect-error formSubmit is not a valid prop
+                        use:formSubmit={handleNext}
+                    >
+                        <div class="flex w-full flex-col items-center justify-start gap-2 p-2 px-8 pb-4">
+                            <For
+                                each={
+                                    attributeTreeCategory()?.attribute_tree ??
+                                    []
+                                }
+                            >
+                                {(attributeNode) => (
+                                    <ShopeeAttributeInput
+                                        class="w-full"
+                                        validate={validate}
+                                        Name={attributeNode.name}
+                                        AttributeId={attributeNode.attribute_id}
+                                        Mandatory={attributeNode.mandatory}
+                                        InputType={
+                                            attributeNode.attribute_info
+                                                .input_type
+                                        }
+                                        InputValidationType={
+                                            attributeNode.attribute_info
+                                                .input_validation_type
+                                        }
+                                        FormatType={
+                                            attributeNode.attribute_info
+                                                .format_type
+                                        }
+                                        DateFormatType={
+                                            attributeNode.attribute_info
+                                                .date_format_type
+                                        }
+                                        AttributeValueList={
+                                            attributeNode.attribute_value_list ?? []
+                                        }
+                                        setValue={(value) =>
+                                            setAttributeValues({
+                                                ...attributeValues(),
+                                                [attributeNode.attribute_id]: value,
+                                            })
+                                        }
+                                        value={
+                                            attributeValues()[
+                                                attributeNode.attribute_id
+                                            ] ?? undefined
+                                        }
+                                        error={errors[attributeNode?.attribute_id?.toString()] as string | undefined ?? undefined}
+                                        setError={(error) => setErrors({ [attributeNode?.attribute_id?.toString()]: error })}
+                                        AttributeUnitList={attributeNode.attribute_info.attribute_unit_list}
                                     />
                                 )}
                             </For>
