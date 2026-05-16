@@ -13,6 +13,12 @@ import {
 } from "solid-js";
 
 import type { AttributeValue } from "@/@types/AttributeTreeCategory";
+import {
+    DateFormatType,
+    FormatType,
+    InputType,
+    InputValidationType,
+} from "@/@types/AttributeTreeCategory";
 import { Button } from "@/components/ui/button";
 import {
     Carousel,
@@ -22,32 +28,6 @@ import {
 } from "@/components/ui/carousel";
 import { ValidatedTextField } from "@/components/ui/validated-text-field";
 import { Validator } from "@/libs/form/validation";
-
-const InputType = {
-    SINGLE_DROP_DOWN: 1,
-    SINGLE_COMBO_BOX: 2,
-    FREE_TEXT_FILED: 3,
-    MULTI_DROP_DOWN: 4,
-    MULTI_COMBO_BOX: 5,
-} as const;
-
-const InputValidationType = {
-    VALIDATOR_NO_VALIDATE_TYPE: 0,
-    VALIDATOR_INT_TYPE: 1,
-    VALIDATOR_STRING_TYPE: 2,
-    VALIDATOR_FLOAT_TYPE: 3,
-    VALIDATOR_DATE_TYPE: 4,
-} as const;
-
-const FormatType = {
-    FORMAT_NORMAL: 1,
-    FORMAT_QUANTITATIVE_WITH_UNIT: 2,
-} as const;
-
-const DateFormatType = {
-    YEAR_MONTH_DATE: 0,
-    YEAR_MONTH: 1,
-} as const;
 
 export type ShopeeAttributeInputProps = {
     validate: (
@@ -409,6 +389,69 @@ export const ShopeeAttributeInput = (props: ShopeeAttributeInputProps) => {
                 return;
             }
             local.setError("Value is mandatory");
+        }
+    });
+
+    createEffect(() => {
+        switch (local.InputType) {
+            case InputType.SINGLE_DROP_DOWN:
+                if ((value() as Partial<AttributeValue>)?.value_id) {
+                    const index = attributeValueList().findIndex(
+                        (a) =>
+                            a.value_id ===
+                            (value() as Partial<AttributeValue>)?.value_id
+                    );
+                    if (index !== -1) {
+                        singleAttributeValueCarouselApi()?.scrollTo(index);
+                    }
+                }
+                break;
+            case InputType.SINGLE_COMBO_BOX:
+                if ((value() as Partial<AttributeValue>)?.value_id) {
+                    const index = attributeValueList().findIndex(
+                        (a) =>
+                            a.value_id ===
+                            (value() as Partial<AttributeValue>)?.value_id
+                    );
+                    if (index !== -1) {
+                        singleAttributeValueCarouselApi()?.scrollTo(index);
+                    }
+                } else if ((value() as Partial<AttributeValue>)?.name) {
+                    const index = attributeValueList().findIndex(
+                        (a) =>
+                            a.name ===
+                            (value() as Partial<AttributeValue>)?.name
+                    );
+                    if (index !== -1) {
+                        singleAttributeValueCarouselApi()?.scrollTo(index);
+                    } else {
+                        setAttributeValueList([
+                            ...attributeValueList(),
+                            value() as Partial<AttributeValue>,
+                        ]);
+                        singleAttributeValueCarouselApi()?.scrollTo(
+                            attributeValueList().length - 1
+                        );
+                    }
+                }
+                break;
+            case InputType.MULTI_COMBO_BOX:
+                ((value() ?? []) as Partial<AttributeValue>[])?.forEach(
+                    (value) => {
+                        if (value.value_id === 0 && value.name?.length) {
+                            const index = attributeValueList().findIndex(
+                                (a) => a.name === value.name
+                            );
+                            if (index === -1) {
+                                setAttributeValueList([
+                                    ...attributeValueList(),
+                                    value,
+                                ]);
+                            }
+                        }
+                    }
+                );
+                break;
         }
     });
 

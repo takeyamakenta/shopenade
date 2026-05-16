@@ -101,6 +101,9 @@ import { useIsLoadingStore } from "@/stores/isLoadingStore";
 import { useCopyItemStepAttributeStore } from "@/stores/items/copyItemStepAttributeStore";
 
 import { ShopeeAttributeInput } from "./components/shopeeAttributeInput";
+import { retrieveShopeeItemBaseInfo } from "@/libs/RPCs/item/shopee/retrieveShopeeItemBaseInfo";
+import { ShopeeItemBaseInfo } from "@/@types/ShopeeItemBaseInfo";
+import { InputType } from "@/@types/AttributeTreeCategory";
 
 const initData = query(async () => {
     "use server";
@@ -1594,6 +1597,7 @@ export default function Items() {
                 "商品の属性情報を確認し、変更の必要がある場合は再入力してください",
             icon: CopyIcon,
             stepFormComponent: (props: StepFormComponentProps) => {
+                const [shopeeItemBaseInfo, setShopeeItemBaseInfo] = createSignal<ShopeeItemBaseInfo | null>(null);
                 const { isLoadingStore } = useIsLoadingStore();
                 const {
                     copyItemStepAttributeStore,
@@ -1646,9 +1650,21 @@ export default function Items() {
                     }
                 };
 
-                onMount(async () => {
-                    await handleRetrieveAttributeTree();
-                });
+                const toCopyItemPlatform = resolveItemPlatform(
+                    items(),
+                    toCopyItemVariant() as ItemVariant
+                );
+
+                const handleRetrieveShopeeItemBaseInfo = async () => {
+                    try {
+                        const { success, data } = await retrieveShopeeItemBaseInfo(toCopyItemVariant()?.integration_account_id as number, toCopyItemPlatform?.shopee_item?.shopee_item_id as string);
+                        if (success && data) {
+                            setShopeeItemBaseInfo(data);
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    }
+                };
 
                 const [attributeValues, setAttributeValues] = createSignal<
                     Record<
@@ -1660,6 +1676,85 @@ export default function Items() {
                     >
                 >({});
 
+                const fillCurrentAttributeValues = () => {
+                    if (!shopeeItemBaseInfo() || !attributeTreeCategory()) return;
+                    attributeTreeCategory()?.attribute_tree.forEach((attribute) => {
+                        const attributeValue = shopeeItemBaseInfo()?.attribute_list.find((a) => a.attribute_id === attribute.attribute_id);
+                        if (attributeValue) {
+                            let newValue: Partial<AttributeValue>|Partial<AttributeValue>[]|string|undefined|null = null;
+                            switch (attribute.attribute_info.input_type) {
+                                case InputType.FREE_TEXT_FILED:
+                                    setAttributeValues({
+                                        ...attributeValues(),
+                                        [attribute.attribute_id]: (attributeValue.attribute_value_list[0]?.original_value_name ?? "") + (attributeValue.attribute_value_list[0]?.value_unit ?? ""),
+                                    });
+                                    break;
+                                case InputType.SINGLE_DROP_DOWN:
+                                    if (attributeValue.attribute_value_list.length > 0) {
+                                        newValue = {
+                                            name: attributeValue.attribute_value_list[0]?.original_value_name ?? "",
+                                            value_id: attributeValue.attribute_value_list[0]?.value_id ?? 0,
+                                            value_unit: attributeValue.attribute_value_list[0]?.value_unit ?? "",
+                                        };
+                                    }
+                                    setAttributeValues({
+                                        ...attributeValues(),
+                                        [attribute.attribute_id]: newValue ?? null,
+                                    });
+                                    break;
+                                case InputType.SINGLE_COMBO_BOX:
+                                    if (attributeValue.attribute_value_list.length > 0) {
+                                        newValue = {
+                                            name: attributeValue.attribute_value_list[0]?.original_value_name ?? "",
+                                            value_id: attributeValue.attribute_value_list[0]?.value_id ?? 0,
+                                            value_unit: attributeValue.attribute_value_list[0]?.value_unit ?? "",
+                                        };
+                                    }
+                                    setAttributeValues({
+                                        ...attributeValues(),
+                                        [attribute.attribute_id]: newValue ?? null,
+                                    });
+                                    break;
+                                case InputType.MULTI_DROP_DOWN:
+                                    if (attributeValue.attribute_value_list.length > 0) {
+                                        newValue = attributeValue.attribute_value_list.map((a) => ({
+                                            name: a.original_value_name ?? "",
+                                            value_id: a.value_id ?? 0,
+                                            value_unit: a.value_unit ?? "",
+                                        }));
+                                    }
+                                    setAttributeValues({
+                                        ...attributeValues(),
+                                        [attribute.attribute_id]: newValue ?? null,
+                                    });
+                                    break;
+                                case InputType.MULTI_COMBO_BOX:
+                                    if (attributeValue.attribute_value_list.length > 0) {
+                                        newValue = attributeValue.attribute_value_list.map((a) => ({
+                                            name: a.original_value_name ?? "",
+                                            value_id: a.value_id ?? 0,
+                                            value_unit: a.value_unit ?? "",
+                                        }));
+                                    }
+                                    setAttributeValues({
+                                        ...attributeValues(),
+                                        [attribute.attribute_id]: newValue ?? null,
+                                    });
+                                    break;
+                                default:
+                                    break;
+                            }
+                            
+                        }
+                    });
+                };
+
+
+                onMount(async () => {
+                    await handleRetrieveAttributeTree();
+                    await handleRetrieveShopeeItemBaseInfo();
+                    fillCurrentAttributeValues();
+                });
                 const { formSubmit, errors, validate, setErrors } = useForm({
                     errorClass: "error",
                 });

@@ -1,3 +1,29 @@
+export const InputType = {
+    SINGLE_DROP_DOWN: 1,
+    SINGLE_COMBO_BOX: 2,
+    FREE_TEXT_FILED: 3,
+    MULTI_DROP_DOWN: 4,
+    MULTI_COMBO_BOX: 5,
+} as const;
+
+export const InputValidationType = {
+    VALIDATOR_NO_VALIDATE_TYPE: 0,
+    VALIDATOR_INT_TYPE: 1,
+    VALIDATOR_STRING_TYPE: 2,
+    VALIDATOR_FLOAT_TYPE: 3,
+    VALIDATOR_DATE_TYPE: 4,
+} as const;
+
+export const FormatType = {
+    FORMAT_NORMAL: 1,
+    FORMAT_QUANTITATIVE_WITH_UNIT: 2,
+} as const;
+
+export const DateFormatType = {
+    YEAR_MONTH_DATE: 0,
+    YEAR_MONTH: 1,
+} as const;
+
 export type AttributeMultiLang = {
     language: string;
     value: string;
